@@ -146,9 +146,14 @@ final class ConfigBinder {
             Type element = typeArgument(type, 0);
             Collection<Object> out = Set.class.isAssignableFrom(rawClass) ? new LinkedHashSet<>() : new ArrayList<>();
             for (int i = 0; i < list.size(); i++) {
-                Object decoded = decode(element, list.get(i), path + "[" + i + "]", pass);
-                if (decoded != null) {
-                    out.add(decoded);
+                String elementPath = path + "[" + i + "]";
+                try {
+                    Object decoded = decode(element, list.get(i), elementPath, pass);
+                    if (decoded != null) {
+                        out.add(decoded);
+                    }
+                } catch (IllegalArgumentException e) {
+                    pass.errors.add(elementPath + ": " + e.getMessage());
                 }
             }
             return Set.class.isAssignableFrom(rawClass) ? Set.copyOf(out) : List.copyOf(out);

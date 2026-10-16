@@ -34,6 +34,7 @@ final class ConfigAnalyzer {
             "java.util.Locale",
             Names.MATERIAL,
             "com.nookfall.framework.util.location.StoredLocation",
+            "org.bukkit.inventory.ItemStack",
             "java.lang.Object");
     private static final Set<String> NUMBERS = Set.of(
             "int",
@@ -134,7 +135,7 @@ final class ConfigAnalyzer {
         }
         String name = env.erasure(type);
         TypeElement element = (TypeElement) ((DeclaredType) type).asElement();
-        if (SCALARS.contains(name) || element.getKind() == ElementKind.ENUM) {
+        if (SCALARS.contains(name) || element.getKind() == ElementKind.ENUM || env.has(element, Names.CODEC)) {
             return;
         }
         List<? extends TypeMirror> args = ((DeclaredType) type).getTypeArguments();

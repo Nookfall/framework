@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
 
 /** Scalar codecs. Collections and nested sections are handled by {@link ConfigBinder}. */
 public final class Codecs {
@@ -53,6 +54,7 @@ public final class Codecs {
         register(
                 StoredLocation.class,
                 codec(raw -> StoredLocation.parse(String.valueOf(raw)), StoredLocation::serialize));
+        register(ItemStack.class, new ItemStackCodec());
     }
 
     public <T> void register(Class<T> type, ConfigCodec<T> codec) {
@@ -62,6 +64,14 @@ public final class Codecs {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public <T> ConfigCodec<T> find(Class<T> type) {
         ConfigCodec<?> codec = codecs.get(type);
+        if (codec == null) {
+            com.nookfall.framework.config.Codec annotation =
+                    type.getAnnotation(com.nookfall.framework.config.Codec.class);
+            if (annotation != null) {
+                codec = (ConfigCodec<?>) ConfigBinder.instantiate(annotation.value());
+                codecs.put(type, codec);
+            }
+        }
         if (codec == null && type.isEnum()) {
             codec = enumCodec((Class<? extends Enum>) type);
         }

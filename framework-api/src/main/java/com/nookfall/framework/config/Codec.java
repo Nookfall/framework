@@ -6,9 +6,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/** Uses a custom codec for a field. The codec class needs a public no-argument constructor. */
+/**
+ * Uses a custom codec. On a field it applies to that field's value; on a class it applies wherever the class is used
+ * in configuration, including inside lists and maps. The codec class needs a no-argument constructor.
+ */
 @Documented
-@Target({ElementType.FIELD})
+@Target({ElementType.FIELD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Codec {
     @SuppressWarnings("rawtypes")

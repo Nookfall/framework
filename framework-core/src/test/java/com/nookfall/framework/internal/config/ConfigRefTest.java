@@ -57,6 +57,26 @@ class ConfigRefTest {
         }
     }
 
+    /** A type-level codec applies everywhere the type appears, including inside lists. */
+    @Codec(ColorCodec.class)
+    record Color(int rgb) {}
+
+    public static final class ColorCodec implements ConfigCodec<Color> {
+        @Override
+        public Color decode(Object raw) {
+            String text = String.valueOf(raw);
+            if (!text.matches("#[0-9a-fA-F]{6}")) {
+                throw new IllegalArgumentException("expected #RRGGBB but got " + text);
+            }
+            return new Color(Integer.parseInt(text.substring(1), 16));
+        }
+
+        @Override
+        public Object encode(Color value) {
+            return String.format("#%06x", value.rgb());
+        }
+    }
+
     static class Reward {
         private String item = "DIAMOND";
         private int amount = 1;
@@ -95,6 +115,8 @@ class ConfigRefTest {
 
         @Codec(PointCodec.class)
         private Point spawn = new Point(0, 64);
+
+        private List<Color> palette = List.of(new Color(0xff0000));
 
         private transient int notSaved = 5;
         private static final int CONSTANT = 1;
@@ -279,6 +301,19 @@ class ConfigRefTest {
         try (var files = Files.list(dir)) {
             assertThat(files.map(p -> p.getFileName().toString())).containsExactly("homes.yml");
         }
+    }
+
+    @Test
+    void typeLevelCodecsWorkInsideCollections() throws Exception {
+        ConfigRef<TestConfig> ref = ref();
+        assertThat(Files.readString(dir.resolve("homes.yml"))).contains("- '#ff0000'");
+        Path file = dir.resolve("homes.yml");
+        Files.writeString(file, Files.readString(file).replace("- '#ff0000'", "- '#00ff00'\n- '#0000ff'"));
+        assertThat(ref.reload().success()).isTrue();
+        assertThat(ref.get().palette).containsExactly(new Color(0x00ff00), new Color(0x0000ff));
+        Files.writeString(file, Files.readString(file).replace("'#0000ff'", "blue"));
+        assertThat(ref.reload().errors())
+                .anySatisfy(e -> assertThat(e).contains("palette[1]: expected #RRGGBB but got blue"));
     }
 
     @Test
