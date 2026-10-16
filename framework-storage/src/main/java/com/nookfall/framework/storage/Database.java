@@ -29,7 +29,11 @@ public interface Database extends AutoCloseable {
     /** Runs work with a connection from the pool, in auto-commit mode. */
     <T> CompletableFuture<T> queryAsync(SqlFunction<Connection, T> work);
 
-    /** Runs work in a transaction that is committed on success and rolled back on any exception. */
+    /**
+     * Runs work in a transaction that is committed on success and rolled back on any exception. A transaction that
+     * fails with a deadlock or serialization failure is rolled back and run again (up to three attempts in total), so
+     * the work must not have side effects outside the connection.
+     */
     <T> CompletableFuture<T> transactionAsync(SqlFunction<Connection, T> work);
 
     /** Executes an update statement with positional parameters and returns the affected row count. */

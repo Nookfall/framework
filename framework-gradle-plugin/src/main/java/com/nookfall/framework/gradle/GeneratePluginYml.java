@@ -14,8 +14,10 @@ import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.work.DisableCachingByDefault;
 
 /** Writes plugin.yml for one packaging mode. */
+@DisableCachingByDefault(because = "Writing one small file is faster than caching it")
 public abstract class GeneratePluginYml extends DefaultTask {
 
     @Input
@@ -50,6 +52,10 @@ public abstract class GeneratePluginYml extends DefaultTask {
     @Input
     public abstract ListProperty<String> getLoadBefore();
 
+    /** The permissions section, already rendered as YAML (empty for none). */
+    @Input
+    public abstract Property<String> getPermissions();
+
     @OutputDirectory
     public abstract DirectoryProperty getOutputDirectory();
 
@@ -83,9 +89,45 @@ public abstract class GeneratePluginYml extends DefaultTask {
         if (!getLoadBefore().get().isEmpty()) {
             yml.append("loadbefore: ").append(list(getLoadBefore().get())).append('\n');
         }
+        yml.append(getPermissions().getOrElse(""));
         Path out = getOutputDirectory().get().getAsFile().toPath();
         Files.createDirectories(out);
         Files.writeString(out.resolve("plugin.yml"), yml.toString(), StandardCharsets.UTF_8);
+    }
+
+    /** One declared permission, as rendered into plugin.yml. */
+    record Permission(String name, @org.jspecify.annotations.Nullable String description, String defaultValue,
+            java.util.Map<String, Boolean> children) {}
+
+    private static final java.util.Set<String> DEFAULTS = java.util.Set.of("true", "false", "op", "not op");
+
+    /** Renders the {@code permissions:} section, validating names and defaults. */
+    static String renderPermissions(List<Permission> permissions) {
+        if (permissions.isEmpty()) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder("permissions:\n");
+        for (Permission permission : permissions) {
+            if (!permission.name().matches("[a-z0-9_.*-]+")) {
+                throw new GradleException("Permission '" + permission.name()
+                        + "' may only contain lower case letters, digits, '_', '-', '.' and '*'");
+            }
+            if (!DEFAULTS.contains(permission.defaultValue())) {
+                throw new GradleException("Permission '" + permission.name() + "' has default '"
+                        + permission.defaultValue() + "'; use true, false, op or not op");
+            }
+            out.append("  ").append(quote(permission.name())).append(":\n");
+            if (permission.description() != null) {
+                out.append("    description: ").append(quote(permission.description())).append('\n');
+            }
+            out.append("    default: ").append(quote(permission.defaultValue())).append('\n');
+            if (!permission.children().isEmpty()) {
+                out.append("    children:\n");
+                permission.children().forEach((child, value) ->
+                        out.append("      ").append(quote(child)).append(": ").append(value).append('\n'));
+            }
+        }
+        return out.toString();
     }
 
     private static String list(List<String> values) {

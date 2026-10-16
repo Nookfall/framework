@@ -1,5 +1,5 @@
 plugins {
-    id("com.nookfall.framework") version "0.1.0"
+    id("com.nookfall.framework") version "0.1.1"
 }
 
 nookfall {
@@ -12,7 +12,7 @@ nookfall {
 }
 
 dependencies {
-    testImplementation("com.nookfall:framework-testing:0.1.0")
+    testImplementation("com.nookfall:framework-testing:0.1.1")
     testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     testImplementation("org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.116.3")
     testImplementation(platform("org.junit:junit-bom:6.1.3"))

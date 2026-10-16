@@ -92,6 +92,7 @@ final class ResourceValidator {
                         declared.conditions(),
                         GuiAnalyzer.BUILTIN_CONDITIONS);
                 actions(type, where + path, element, declared);
+                templates(type, where + path, element, yaml.get("templates"));
                 if (element.get("item") instanceof Map<?, ?> item) {
                     actions(type, where + path + ".item", item, declared);
                     reference(
@@ -135,6 +136,24 @@ final class ResourceValidator {
             }
         } else {
             env.error(type, where + "layout must be a list of rows");
+        }
+    }
+
+    /** A collection's item-template and variant templates must exist under templates. */
+    private void templates(TypeElement type, String path, Map<?, ?> element, Object templates) {
+        Map<?, ?> defined = templates instanceof Map<?, ?> map ? map : Map.of();
+        if (element.get("item-template") instanceof String name && !(defined.get(name) instanceof Map<?, ?>)) {
+            env.error(type, path + ".item-template '" + name + "' is not defined under templates");
+        }
+        if (element.get("variants") instanceof Map<?, ?> variants) {
+            for (Map.Entry<?, ?> variant : variants.entrySet()) {
+                if (!(defined.get(String.valueOf(variant.getValue())) instanceof Map<?, ?>)) {
+                    env.error(
+                            type,
+                            path + ".variants." + variant.getKey() + " '" + variant.getValue()
+                                    + "' is not defined under templates");
+                }
+            }
         }
     }
 

@@ -303,9 +303,50 @@ public final class ProbeRunner {
         check("safe-location", com.nookfall.framework.util.location.SafeLocations.isSafe(surface)
                 && !com.nookfall.framework.util.location.SafeLocations.isSafe(surface.clone().add(0, -2, 0)),
                 "surface=" + surface);
+        safeLocationShapes(surface.clone().add(3, 10, 3));
+        var member = Bukkit.getPluginManager().getPermission("probe.member." + label);
+        check("plugin-yml-permissions", member != null
+                && member.getDefault() == org.bukkit.permissions.PermissionDefault.TRUE
+                && Boolean.TRUE.equals(member.getChildren().get("probe.member." + label + ".extra")),
+                "permission=" + (member == null ? null : member.getDefault() + " " + member.getChildren()));
         var cuboid = com.nookfall.framework.util.location.Cuboid.between(location, location.clone().add(5, 5, 5));
         check("cuboid", cuboid.contains(location.clone().add(2, 2, 2)) && !cuboid.contains(location.clone().add(9, 0, 0))
                 && cuboid.volume() == 216, String.valueOf(cuboid));
+    }
+
+    /** Slabs and carpets are safe to stand on; lava is not. Uses real block collision shapes. */
+    private void safeLocationShapes(Location base) {
+        World world = base.getWorld();
+        int x = base.getBlockX();
+        int y = base.getBlockY();
+        int z = base.getBlockZ();
+        var placed = new ArrayList<org.bukkit.block.Block>();
+        java.util.function.BiConsumer<int[], org.bukkit.Material> set = (pos, type) -> {
+            org.bukkit.block.Block block = world.getBlockAt(pos[0], pos[1], pos[2]);
+            block.setType(type, false);
+            placed.add(block);
+        };
+        try {
+            set.accept(new int[] {x, y, z}, org.bukkit.Material.STONE);
+            set.accept(new int[] {x, y + 1, z}, org.bukkit.Material.STONE_SLAB);
+            set.accept(new int[] {x + 3, y, z}, org.bukkit.Material.STONE);
+            set.accept(new int[] {x + 3, y + 1, z}, org.bukkit.Material.WHITE_CARPET);
+            set.accept(new int[] {x + 6, y, z}, org.bukkit.Material.STONE);
+            set.accept(new int[] {x + 6, y + 1, z}, org.bukkit.Material.LAVA);
+            var slab = com.nookfall.framework.util.location.SafeLocations.check(new Location(world, x + 0.5, y + 1.5, z + 0.5));
+            var carpet = com.nookfall.framework.util.location.SafeLocations.check(
+                    new Location(world, x + 3.5, y + 1.0625, z + 0.5));
+            var inSlab = com.nookfall.framework.util.location.SafeLocations.check(new Location(world, x + 0.5, y + 1.2, z + 0.5));
+            var lava = com.nookfall.framework.util.location.SafeLocations.check(new Location(world, x + 6.5, y + 1, z + 0.5));
+            var air = com.nookfall.framework.util.location.SafeLocations.check(new Location(world, x + 9.5, y + 1, z + 0.5));
+            check("safe-location-shapes", slab.name().equals("SAFE") && carpet.name().equals("SAFE")
+                    && inSlab.name().equals("OBSTRUCTED") && lava.name().equals("HAZARD") && air.name().equals("NO_GROUND"),
+                    "slab=" + slab + " carpet=" + carpet + " inSlab=" + inSlab + " lava=" + lava + " air=" + air);
+        } finally {
+            for (org.bukkit.block.Block block : placed) {
+                block.setType(org.bukkit.Material.AIR, false);
+            }
+        }
     }
 
     private void delayedChecks() throws Exception {

@@ -17,6 +17,11 @@ java {
 
 dependencies {
     implementation(libs.shadow.gradle)
+    compileOnly(libs.jspecify)
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.assertj)
+    testRuntimeOnly(libs.junit.launcher)
 }
 
 gradlePlugin {
@@ -63,4 +68,8 @@ publishing {
             }
         }
     }
+}
+
+tasks.test {
+    useJUnitPlatform()
 }

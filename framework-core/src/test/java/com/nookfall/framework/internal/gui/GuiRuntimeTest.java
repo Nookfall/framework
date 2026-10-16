@@ -50,6 +50,8 @@ class GuiRuntimeTest {
                 type: collection
                 provider: items
                 item-template: entry
+                variants:
+                  locked: locked-entry
                 loading-item:
                   material: CLOCK
                   name: "Loading"
@@ -77,6 +79,10 @@ class GuiRuntimeTest {
                 action: pick
                 click-actions:
                   right: inspect
+              locked-entry:
+                material: BARRIER
+                name: "<red>Locked <number>"
+                action: inspect
             """;
 
     /** The object a generated binding would wrap. */
@@ -89,7 +95,9 @@ class GuiRuntimeTest {
         List<GuiEntry<?>> items() {
             List<GuiEntry<?>> out = new ArrayList<>();
             for (int i = 1; i <= size; i++) {
-                out.add(GuiEntry.of("id-" + i, i).placeholder("number", i));
+                GuiEntry<?> entry = GuiEntry.of("id-" + i, i).placeholder("number", i);
+                // Entry 3 uses a variant the layout maps; entry 4 one it does not.
+                out.add(i == 3 ? entry.variant("locked") : i == 4 ? entry.variant("unmapped") : entry);
             }
             return out;
         }
@@ -211,6 +219,18 @@ class GuiRuntimeTest {
         assertThat(numberKey.isCancelled()).isTrue();
         assertThat(menu.picked).as("number keys have no action by default").hasSize(1);
         assertThat(name(view.getTopInventory().getItem(4))).isEqualTo("Item 5");
+    }
+
+    @Test
+    void entryVariantsUseTheirTemplateAndActions() {
+        InventoryView view = open();
+        assertThat(view.getTopInventory().getItem(2).getType()).isEqualTo(Material.BARRIER);
+        assertThat(name(view.getTopInventory().getItem(2))).isEqualTo("Locked 3");
+        assertThat(view.getTopInventory().getItem(3).getType()).isEqualTo(Material.PAPER);
+        assertThat(name(view.getTopInventory().getItem(3))).isEqualTo("Item 4");
+        click(view, 2, ClickType.LEFT, InventoryAction.PICKUP_ALL);
+        assertThat(menu.picked).isEmpty();
+        assertThat(menu.inspected).containsExactly("id-3@LEFT");
     }
 
     @Test

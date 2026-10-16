@@ -32,6 +32,8 @@ final class HikariDatabase implements Database {
     private static final Logger LOGGER = Logger.getLogger("Nookfall/Database");
     private static final int QUEUE_CAPACITY = 2048;
     private static final long SHUTDOWN_WAIT_SECONDS = 10;
+    /** Attempts for a transaction that fails with a deadlock or serialization failure. */
+    private static final int TRANSACTION_ATTEMPTS = 3;
 
     private final String name;
     private final DatabaseType type;
@@ -186,6 +188,40 @@ final class HikariDatabase implements Database {
     }
 
     private <T> T run(SqlFunction<Connection, T> work, boolean transaction) {
+        if (!transaction) {
+            return runOnce(work, false);
+        }
+        for (int attempt = 1; ; attempt++) {
+            try {
+                return runOnce(work, true);
+            } catch (CompletionException e) {
+                if (attempt >= TRANSACTION_ATTEMPTS || !isTransient(e.getCause())) {
+                    throw e;
+                }
+                LOGGER.fine(
+                        name + ": retrying a transaction after " + e.getCause().getMessage());
+            }
+        }
+    }
+
+    /**
+     * Deadlocks and serialization failures roll back the whole transaction, so running it again is safe and is what
+     * the databases recommend.
+     */
+    static boolean isTransient(Throwable error) {
+        for (Throwable t = error; t != null; t = t.getCause()) {
+            if (t instanceof SQLException sql) {
+                String state = sql.getSQLState();
+                // 40001 serialization failure / deadlock, 40P01 deadlock; MySQL/MariaDB 1213 deadlock.
+                if ((state != null && state.startsWith("40")) || sql.getErrorCode() == 1213) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private <T> T runOnce(SqlFunction<Connection, T> work, boolean transaction) {
         try (Connection connection = dataSource.getConnection()) {
             if (!transaction) {
                 return work.apply(connection);
@@ -332,14 +368,13 @@ final class HikariDatabase implements Database {
         }
         return unwrap(() -> run(
                 connection -> {
-                    try (Statement statement = connection.createStatement()) {
-                        statement.execute("CREATE TABLE IF NOT EXISTS nookfall_migrations ("
-                                + "version INTEGER PRIMARY KEY, description VARCHAR(255) NOT NULL, "
-                                + "checksum VARCHAR(64), applied_at BIGINT NOT NULL)");
-                    }
+                    prepareHistory(connection);
                     Map<Integer, String> applied = new HashMap<>();
-                    for (Object[] row : list(connection, "SELECT version, checksum FROM nookfall_migrations", r ->
-                            new Object[] {r.getInt(1), r.getString(2)})) {
+                    for (Object[] row : list(
+                            connection,
+                            "SELECT version, checksum FROM nookfall_migrations WHERE owner = ?",
+                            r -> new Object[] {r.getInt(1), r.getString(2)},
+                            name)) {
                         applied.put((Integer) row[0], (String) row[1]);
                     }
                     List<Integer> ran = new ArrayList<>();
@@ -360,7 +395,9 @@ final class HikariDatabase implements Database {
                             migration.apply(connection);
                             try (PreparedStatement insert = prepare(
                                     connection,
-                                    "INSERT INTO nookfall_migrations (version, description, checksum, applied_at) VALUES (?, ?, ?, ?)",
+                                    "INSERT INTO nookfall_migrations (owner, version, description, checksum, applied_at) "
+                                            + "VALUES (?, ?, ?, ?, ?)",
+                                    name,
                                     migration.version(),
                                     migration.description(),
                                     migration.checksum(),
@@ -385,6 +422,59 @@ final class HikariDatabase implements Database {
                     return ran;
                 },
                 false));
+    }
+
+    /**
+     * Creates the migration history table. History is kept per owner (the plugin name) so several plugins can share
+     * one MySQL/MariaDB database. A 0.1.0 table without the owner column is upgraded, and its rows are assigned to the
+     * first owner that migrates after the upgrade.
+     */
+    private void prepareHistory(Connection connection) throws SQLException {
+        boolean exists = false;
+        boolean legacy = false;
+        try (Statement statement = connection.createStatement();
+                ResultSet rows = statement.executeQuery("SELECT * FROM nookfall_migrations WHERE 1 = 0")) {
+            exists = true;
+            var meta = rows.getMetaData();
+            legacy = true;
+            for (int i = 1; i <= meta.getColumnCount(); i++) {
+                if (meta.getColumnName(i).equalsIgnoreCase("owner")) {
+                    legacy = false;
+                }
+            }
+        } catch (SQLException missing) {
+            // No table yet. Some drivers abort the transaction on errors; migrate runs in auto-commit mode here.
+        }
+        if (exists && !legacy) {
+            return;
+        }
+        boolean autoCommit = connection.getAutoCommit();
+        connection.setAutoCommit(false);
+        try (Statement statement = connection.createStatement()) {
+            if (legacy) {
+                statement.execute("ALTER TABLE nookfall_migrations RENAME TO nookfall_migrations_legacy");
+            }
+            statement.execute("CREATE TABLE nookfall_migrations (owner VARCHAR(64) NOT NULL, version INTEGER NOT NULL, "
+                    + "description VARCHAR(255) NOT NULL, checksum VARCHAR(64), applied_at BIGINT NOT NULL, "
+                    + "PRIMARY KEY (owner, version))");
+            if (legacy) {
+                try (PreparedStatement copy = prepare(
+                        connection,
+                        "INSERT INTO nookfall_migrations (owner, version, description, checksum, applied_at) "
+                                + "SELECT ?, version, description, checksum, applied_at FROM nookfall_migrations_legacy",
+                        name)) {
+                    copy.executeUpdate();
+                }
+                statement.execute("DROP TABLE nookfall_migrations_legacy");
+                LOGGER.info(name + ": upgraded the migration history table to per-plugin entries");
+            }
+            connection.commit();
+        } catch (SQLException e) {
+            connection.rollback();
+            throw e;
+        } finally {
+            connection.setAutoCommit(autoCommit);
+        }
     }
 
     @Override

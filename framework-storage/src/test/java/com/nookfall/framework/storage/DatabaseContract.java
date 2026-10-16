@@ -22,6 +22,9 @@ abstract class DatabaseContract {
 
     protected abstract Database open() throws Exception;
 
+    /** Opens another connection to the same storage under a different plugin name, without resetting it. */
+    protected abstract Database openShared(String name) throws Exception;
+
     @BeforeEach
     void setUp() throws Exception {
         database = open();
@@ -154,5 +157,81 @@ abstract class DatabaseContract {
         assertThatThrownBy(() -> database.updateAsync("SELECT 1").get(1, TimeUnit.SECONDS))
                 .hasCauseInstanceOf(DatabaseException.class)
                 .hasMessageContaining("closed");
+    }
+
+    @Test
+    void pluginsSharingADatabaseKeepSeparateMigrationHistories() throws Exception {
+        try (Database other = openShared("other-plugin")) {
+            Migration otherFirst = Migration.sql(1, "other table", "CREATE TABLE other_plugin_data (id INTEGER);");
+            assertThat(other.migrate(List.of(otherFirst))).containsExactly(1);
+            assertThat(other.migrate(List.of(otherFirst))).isEmpty();
+        }
+        // The first database's own version 1 is still recorded as applied, with its own checksum.
+        assertThat(database.migrate(List.of(Migration.sql(2, "next", "CREATE TABLE next_data (id INTEGER);"))))
+                .containsExactly(2);
+        assertThat(database.findAsync("SELECT COUNT(*) FROM nookfall_migrations", r -> r.getInt(1))
+                        .get(10, TimeUnit.SECONDS))
+                .contains(3);
+    }
+
+    @Test
+    void legacyHistoryTableIsUpgraded() throws Exception {
+        database.query(connection -> {
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("DROP TABLE nookfall_migrations");
+                statement.execute("CREATE TABLE nookfall_migrations (version INTEGER PRIMARY KEY, "
+                        + "description VARCHAR(255) NOT NULL, checksum VARCHAR(64), applied_at BIGINT NOT NULL)");
+                statement.execute("INSERT INTO nookfall_migrations VALUES (1, 'homes', 'legacy', 0)");
+            }
+            return null;
+        });
+        // Version 1 counts as applied for this plugin (the legacy checksum is kept, so code migrations compare).
+        assertThat(database.migrate(List.of(Migration.code(1, "homes", c -> {}), Migration.code(2, "two", c -> {}))))
+                .containsExactly(2);
+        try (Database other = openShared("other-plugin")) {
+            assertThat(other.migrate(List.of(Migration.code(1, "first", c -> {}))))
+                    .containsExactly(1);
+        }
+    }
+
+    @Test
+    void transactionsAreRetriedAfterDeadlocks() throws Exception {
+        AtomicInteger attempts = new AtomicInteger();
+        int result = database.transactionAsync(connection -> {
+                    try (Statement statement = connection.createStatement()) {
+                        statement.execute("INSERT INTO counters (id, value) VALUES (1, 1)");
+                    }
+                    if (attempts.incrementAndGet() < 3) {
+                        throw new SQLException("Deadlock found when trying to get lock", "40001", 1213);
+                    }
+                    return attempts.get();
+                })
+                .get(10, TimeUnit.SECONDS);
+        assertThat(result).isEqualTo(3);
+        // The insert of the failed attempts was rolled back, so the third one did not hit the primary key.
+        assertThat(database.findAsync("SELECT COUNT(*) FROM counters", r -> r.getInt(1))
+                        .get(10, TimeUnit.SECONDS))
+                .contains(1);
+    }
+
+    @Test
+    void transactionsGiveUpAfterThreeDeadlocksAndDoNotRetryOtherErrors() {
+        AtomicInteger deadlocks = new AtomicInteger();
+        assertThatThrownBy(() -> database.transactionAsync(connection -> {
+                            deadlocks.incrementAndGet();
+                            throw new SQLException("deadlock", "40001");
+                        })
+                        .get(10, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(DatabaseException.class);
+        assertThat(deadlocks).hasValue(3);
+
+        AtomicInteger failures = new AtomicInteger();
+        assertThatThrownBy(() -> database.transactionAsync(connection -> {
+                            failures.incrementAndGet();
+                            throw new SQLException("syntax", "42000");
+                        })
+                        .get(10, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(DatabaseException.class);
+        assertThat(failures).hasValue(1);
     }
 }

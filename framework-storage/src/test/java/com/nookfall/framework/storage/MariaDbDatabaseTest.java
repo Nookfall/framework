@@ -40,6 +40,15 @@ class MariaDbDatabaseTest extends DatabaseContract {
             statement.execute("DROP DATABASE IF EXISTS nookfall_test");
             statement.execute("CREATE DATABASE nookfall_test");
         }
+        return connect("test");
+    }
+
+    @Override
+    protected Database openShared(String name) throws Exception {
+        return connect(name);
+    }
+
+    private Database connect(String name) throws Exception {
         DatabaseSettings settings = new DatabaseSettings();
         set(settings, "type", DatabaseType.MARIADB);
         set(settings, "host", container.getHost());
@@ -47,7 +56,7 @@ class MariaDbDatabaseTest extends DatabaseContract {
         set(settings, "database", "nookfall_test");
         set(settings, "username", "root");
         set(settings, "password", container.getPassword());
-        return Database.create("test", directory, settings);
+        return Database.create(name, directory, settings);
     }
 
     private static void set(Object target, String field, Object value) throws ReflectiveOperationException {

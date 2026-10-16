@@ -1,0 +1,1 @@
+ALTER TABLE discovered ADD COLUMN name VARCHAR(16);

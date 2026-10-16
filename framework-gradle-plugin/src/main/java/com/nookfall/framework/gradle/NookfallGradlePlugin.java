@@ -156,6 +156,17 @@ public final class NookfallGradlePlugin implements Plugin<Project> {
             task.getSoftDepend().set(ext.getSoftDepend());
             task.getLoadBefore().set(ext.getLoadBefore());
             task.getOutputDirectory().set(output);
+            task.getPermissions().set(project.provider(() -> {
+                List<GeneratePluginYml.Permission> permissions = new ArrayList<>();
+                for (PermissionSpec spec : ext.getPermissions()) {
+                    permissions.add(new GeneratePluginYml.Permission(
+                            spec.getName(),
+                            spec.getDescription().getOrNull(),
+                            spec.getDefault().getOrElse("op"),
+                            new java.util.TreeMap<>(spec.getChildren().getOrElse(java.util.Map.of()))));
+                }
+                return GeneratePluginYml.renderPermissions(permissions);
+            }));
             if (shared) {
                 task.getDepend().set(ext.getDepend().map(list -> {
                     List<String> all = new ArrayList<>();

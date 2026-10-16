@@ -10,3 +10,13 @@ nookfall {
     mainClass = "com.nookfall.probe.alpha.AlphaPlugin"
     description = "Nookfall integration probe Alpha"
 }
+
+nookfall {
+    permissions {
+        register("probe.member.alpha") {
+            description = "Granted to everyone by default"
+            default = "true"
+            children.put("probe.member.alpha.extra", true)
+        }
+    }
+}

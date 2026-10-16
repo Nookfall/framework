@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: nookfall/framework
-          ref: v0.1.0
+          ref: v0.1.1
           path: .nookfall-framework
       - name: Install Nookfall Framework locally
         run: ./gradlew publishAllToMavenLocal

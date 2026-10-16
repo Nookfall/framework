@@ -111,22 +111,22 @@ public final class Harness {
                         true),
                 new Scenario("examples-standalone", List.of("hello.standalone", "homes.standalone", "showcase.standalone"),
                         List.of(), Map.of(),
-                        List.of("[NookfallHello] Nookfall", "[NookfallHomes] Nookfall", "[NookfallGuiShowcase] Nookfall",
+                        List.of("[NookfallHello] Nookfall", "[NookfallHomesDemo] Nookfall", "[NookfallGuiShowcase] Nookfall",
                                 "applied database migrations [1]", "Hello, CONSOLE!"),
                         List.of(), false, List.of("hello"),
-                        List.of("NookfallHomes/data.db", "NookfallHomes/config.yml", "NookfallHomes/guis/homes/layout.yml",
+                        List.of("NookfallHomesDemo/data.db", "NookfallHomesDemo/config.yml", "NookfallHomesDemo/guis/homes/layout.yml",
                                 "NookfallGuiShowcase/guis/main/layout.yml", "NookfallHello/lang/pl_PL.yml")),
                 new Scenario("examples-shared",
                         List.of("framework", "hello.shared", "homes.shared", "showcase.shared"), List.of(), Map.of(),
-                        List.of("Plugins using the shared runtime: 3", "- NookfallHomes (shared)", "Reloaded NookfallHomes."),
-                        List.of(), false, List.of("nookfall plugins", "nookfall reload NookfallHomes"),
-                        List.of("NookfallHomes/data.db")),
+                        List.of("Plugins using the shared runtime: 3", "- NookfallHomesDemo (shared)", "Reloaded NookfallHomesDemo."),
+                        List.of(), false, List.of("nookfall plugins", "nookfall reload NookfallHomesDemo"),
+                        List.of("NookfallHomesDemo/data.db")),
                 new Scenario("starter", List.of("starter.standalone"), List.of(), Map.of(),
                         List.of("[StarterPlugin] Nookfall", "StarterPlugin: applied database migrations [1]"),
                         List.of(), false, List.of("starter visitors"),
                         List.of("StarterPlugin/data.db", "StarterPlugin/guis/menu/layout.yml", "StarterPlugin/config.yml")),
                 new Scenario("starter-shared", List.of("framework", "starter.shared"), List.of(), Map.of(),
-                        List.of("[StarterPlugin] Nookfall 0.1.0 (shared) ready"), List.of(), false, List.of(),
+                        List.of("[StarterPlugin] Nookfall " + options.getOrDefault("frameworkVersion", "") + " (shared) ready"), List.of(), false, List.of(),
                         List.of("StarterPlugin/data.db")));
         String selected = options.getOrDefault("scenarios", "all");
         if (selected.equals("all")) {
@@ -237,6 +237,9 @@ public final class Harness {
                 enable-rcon=false
                 enable-query=false
                 motd=Nookfall integration test
+                difficulty=peaceful
+                spawn-monsters=false
+                spawn-animals=false
                 enforce-secure-profile=false
                 server-port=%d
                 """.formatted(freePort()));

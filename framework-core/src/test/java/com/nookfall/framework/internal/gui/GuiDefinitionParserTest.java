@@ -210,4 +210,47 @@ class GuiDefinitionParserTest {
                 .isInstanceOf(GuiDefinitionException.class)
                 .hasMessageContaining("elements section is missing");
     }
+
+    @Test
+    void variantsMapToTemplatesAndMarkThemUsed() {
+        String yaml = HOMES.replace("""
+                    page-size: auto
+                """, """
+                    page-size: auto
+                    variants:
+                      unavailable: broken-home
+                """) + """
+                  broken-home:
+                    material: BARRIER
+                    action: info
+                """;
+        List<String> warnings = new ArrayList<>();
+        GuiDefinition.Element homes = parse(yaml, warnings).elements().get("homes");
+        assertThat(warnings).isEmpty();
+        assertThat(homes.templateFor("unavailable").material()).isEqualTo(Material.BARRIER);
+        assertThat(homes.templateFor("other").material())
+                .as("unmapped variants use item-template")
+                .isEqualTo(Material.RED_BED);
+        assertThat(homes.templateFor(null).material()).isEqualTo(Material.RED_BED);
+    }
+
+    @Test
+    void variantsMustReferenceDefinedTemplatesAndOnlyAppearOnCollections() {
+        String missing = HOMES.replace("""
+                    page-size: auto
+                """, """
+                    page-size: auto
+                    variants:
+                      unavailable: nope
+                """);
+        assertThat(errors(missing))
+                .contains("elements.homes.variants.unavailable 'nope' is not defined under templates");
+        String onButton = HOMES.replace("""
+                    action: close
+                """, """
+                    action: close
+                    variants: { a: home }
+                """);
+        assertThat(errors(onButton)).contains("elements.close.variants is only allowed on collections");
+    }
 }

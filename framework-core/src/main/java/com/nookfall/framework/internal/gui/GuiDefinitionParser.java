@@ -35,7 +35,8 @@ final class GuiDefinitionParser {
             "item-template",
             "page-size",
             "empty-item",
-            "loading-item");
+            "loading-item",
+            "variants");
     private static final Set<String> ITEM_KEYS = Set.of(
             "material",
             "amount",
@@ -126,7 +127,10 @@ final class GuiDefinitionParser {
         if (templates != null) {
             for (String key : templates.getKeys(false)) {
                 boolean used = elements.values().stream()
-                        .anyMatch(e -> e.type() == Type.COLLECTION && key.equals(templateName(elementSection, e.id())));
+                        .anyMatch(e -> e.type() == Type.COLLECTION
+                                && (key.equals(templateName(elementSection, e.id()))
+                                        || variantTemplates(elementSection, e.id())
+                                                .contains(key)));
                 if (!used) {
                     warnings.add("templates." + key + " is not used by any collection");
                 }
@@ -169,6 +173,19 @@ final class GuiDefinitionParser {
 
     private static @Nullable String templateName(@Nullable ConfigurationSection elements, String elementId) {
         return elements == null ? null : elements.getString(elementId + ".item-template");
+    }
+
+    private static List<String> variantTemplates(@Nullable ConfigurationSection elements, String elementId) {
+        ConfigurationSection variants =
+                elements == null ? null : elements.getConfigurationSection(elementId + ".variants");
+        if (variants == null) {
+            return List.of();
+        }
+        List<String> names = new ArrayList<>();
+        for (String key : variants.getKeys(false)) {
+            names.add(variants.getString(key, ""));
+        }
+        return names;
     }
 
     private @Nullable Element element(
@@ -219,7 +236,37 @@ final class GuiDefinitionParser {
             }
             ItemSpec empty = optionalItem(section, "empty-item", path);
             ItemSpec loading = optionalItem(section, "loading-item", path);
-            return new Element(key, symbol.charAt(0), type, template, visibleIf, provider, pageSize, empty, loading);
+            Map<String, ItemSpec> variants = new LinkedHashMap<>();
+            if (section.contains("variants")) {
+                ConfigurationSection variantSection = section.getConfigurationSection("variants");
+                if (variantSection == null) {
+                    errors.add(path + ".variants must map variant names to template names");
+                } else {
+                    for (String variant : variantSection.getKeys(false)) {
+                        String name = variantSection.getString(variant);
+                        if (name == null || templates == null || !templates.isConfigurationSection(name)) {
+                            errors.add(
+                                    path + ".variants." + variant + " '" + name + "' is not defined under templates");
+                            continue;
+                        }
+                        ItemSpec spec = item(templates.getConfigurationSection(name), "templates." + name, true);
+                        if (spec != null) {
+                            variants.put(variant, spec);
+                        }
+                    }
+                }
+            }
+            return new Element(
+                    key,
+                    symbol.charAt(0),
+                    type,
+                    template,
+                    visibleIf,
+                    provider,
+                    pageSize,
+                    empty,
+                    loading,
+                    Map.copyOf(variants));
         }
         ConfigurationSection itemSection = section.getConfigurationSection("item");
         if (itemSection == null) {
@@ -236,7 +283,10 @@ final class GuiDefinitionParser {
                 && item.clickActions().isEmpty()) {
             errors.add(path + " is a button but has no action");
         }
-        return new Element(key, symbol.charAt(0), type, item, visibleIf, null, 0, null, null);
+        if (section.contains("variants")) {
+            errors.add(path + ".variants is only allowed on collections");
+        }
+        return new Element(key, symbol.charAt(0), type, item, visibleIf, null, 0, null, null, Map.of());
     }
 
     private @Nullable ItemSpec optionalItem(ConfigurationSection section, String key, String path) {

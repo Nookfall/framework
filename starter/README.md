@@ -8,7 +8,7 @@ a configuration class, translations, a YAML-configurable menu, a scheduled task 
 - JDK 21 or newer (Gradle downloads a JDK 21 toolchain if needed)
 - Paper 1.21 or newer
 
-Nookfall Framework 0.1.0 is not yet published to a public Maven repository. Until it is, install it into your
+Nookfall Framework 0.1.1 is not yet published to a public Maven repository. Until it is, install it into your
 local Maven repository from a checkout of the framework:
 
 ```sh

@@ -17,6 +17,11 @@ class SqliteDatabaseTest extends DatabaseContract {
         return Database.create("test", directory, new DatabaseSettings());
     }
 
+    @Override
+    protected Database openShared(String name) {
+        return Database.create(name, directory, new DatabaseSettings());
+    }
+
     @Test
     void unreachableServerFailsFastWithReadableError() throws Exception {
         DatabaseSettings settings = new DatabaseSettings();

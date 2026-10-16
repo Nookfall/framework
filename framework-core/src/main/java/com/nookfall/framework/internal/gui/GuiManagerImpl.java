@@ -580,8 +580,9 @@ public final class GuiManagerImpl implements GuiManager, Listener {
             }
             GuiEntry<?> entry = entries.get(index);
             int slot = elementSlots[i];
-            contents[slot] = build(session, element.item(), GuiContextImpl.render(session, element.id(), entry), entry);
-            slots[slot] = new SlotBinding(element.id(), entry, element.item());
+            ItemSpec template = element.templateFor(entry.variant());
+            contents[slot] = build(session, template, GuiContextImpl.render(session, element.id(), entry), entry);
+            slots[slot] = new SlotBinding(element.id(), entry, template);
         }
     }
 

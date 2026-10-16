@@ -1,5 +1,6 @@
 package com.nookfall.framework.gradle;
 
+import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 
@@ -45,4 +46,7 @@ public abstract class NookfallExtension {
 
     /** Whether the Paper API and framework dependencies are added automatically. */
     public abstract Property<Boolean> getAddDependencies();
+
+    /** Permissions written to plugin.yml with their descriptions, defaults and children. */
+    public abstract NamedDomainObjectContainer<PermissionSpec> getPermissions();
 }

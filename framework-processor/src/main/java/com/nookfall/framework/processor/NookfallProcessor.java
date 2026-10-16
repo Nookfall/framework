@@ -325,6 +325,13 @@ public final class NookfallProcessor extends AbstractProcessor {
                 || env.has(type, Names.AVAJE_PROTOTYPE)) {
             return;
         }
+        if (type.getNestingKind() != javax.lang.model.element.NestingKind.TOP_LEVEL) {
+            // Avaje Inject generates invalid imports for nested classes listed in @Component.Import.
+            env.error(
+                    type,
+                    type.getSimpleName() + " must be a top-level class: Avaje Inject cannot construct nested classes");
+            return;
+        }
         if (imported.add(name)) {
             (prototype ? pkg.prototypeImports : pkg.singletonImports).add(name);
         }

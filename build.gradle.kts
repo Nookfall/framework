@@ -28,3 +28,8 @@ tasks.register("publishAllToMavenLocal") {
     dependsOn(publishedModules.map { ":$it:publishToMavenLocal" })
     dependsOn(gradle.includedBuild("framework-gradle-plugin").task(":publishToMavenLocal"))
 }
+
+// The Gradle plugin is an included build; run its tests as part of the main build.
+tasks.named("check") {
+    dependsOn(gradle.includedBuild("framework-gradle-plugin").task(":check"))
+}

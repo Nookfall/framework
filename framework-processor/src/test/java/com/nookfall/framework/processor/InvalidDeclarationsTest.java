@@ -37,6 +37,18 @@ class InvalidDeclarationsTest {
     }
 
     @Test
+    void nestedComponentsAreRejectedWithAClearMessage() {
+        List<String> errors = errors(source("demo.Outer", """
+                package demo;
+                public class Outer {
+                    @com.nookfall.framework.command.Command("inner")
+                    public static class Inner { @com.nookfall.framework.command.Execute void run() {} }
+                }
+                """));
+        assertThat(errors).anySatisfy(e -> assertThat(e).contains("Inner must be a top-level class"));
+    }
+
+    @Test
     void unsupportedCommandArgument() {
         List<String> errors = errors(source("demo.C", """
                 package demo;
@@ -225,10 +237,11 @@ class InvalidDeclarationsTest {
                 rows: 2
                 layout:
                   - "AAAAAAAA"
-                  - "BBBBBBBBZ"
+                  - "BBBBCCCCZ"
                 elements:
                   a: { symbol: "A", type: button, action: missing_action, item: { material: STONE } }
-                  b: { symbol: "B", type: collection, provider: nope, item-template: t }
+                  b: { symbol: "B", type: collection, provider: nope, item-template: t, variants: { locked: gone } }
+                  c: { symbol: "C", type: collection, provider: nope, item-template: absent }
                 templates:
                   t: { material: STONE }
                 """);
@@ -249,6 +262,8 @@ class InvalidDeclarationsTest {
         assertThat(errors).anySatisfy(e -> assertThat(e).contains("undeclared symbol 'Z'"));
         assertThat(errors).anySatisfy(e -> assertThat(e).contains("'missing_action' is not declared in G"));
         assertThat(errors).anySatisfy(e -> assertThat(e).contains("'nope' is not declared in G"));
+        assertThat(errors).anySatisfy(e -> assertThat(e).contains("elements.b.variants.locked 'gone' is not defined"));
+        assertThat(errors).anySatisfy(e -> assertThat(e).contains("elements.c.item-template 'absent' is not defined"));
     }
 
     @Test
