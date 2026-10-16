@@ -14,6 +14,7 @@ val jarTasks = listOf(
     "$probes:probe-beta:standaloneJar",
     "$probes:probe-beta:sharedJar",
     "$probes:probe-incompatible:sharedJar",
+    "$probes:probe-gui:standaloneJar",
 )
 
 val toolchains = project.extensions.getByType<JavaToolchainService>()
@@ -47,7 +48,9 @@ tasks.register<JavaExec>("paperTest") {
         "beta.shared" to root.file("examples/dual-runtime-test/probe-beta/build/libs/ProbeBeta-$version-shared.jar"),
         "incompatible.shared" to root.file(
             "examples/dual-runtime-test/probe-incompatible/build/libs/ProbeIncompatible-$version-shared.jar"),
+        "gui.standalone" to root.file("examples/dual-runtime-test/probe-gui/build/libs/ProbeGui-$version.jar"),
     ).mapValues { it.value.asFile.absolutePath }
+    val bot = root.dir("examples/dual-runtime-test/gui-bot").asFile.absolutePath
     argumentProviders.add(CommandLineArgumentProvider {
         listOf(
             "--versions=" + versions.get(),
@@ -56,6 +59,7 @@ tasks.register<JavaExec>("paperTest") {
             "--java25=" + j25.get(),
             "--work=" + work,
             "--report=" + report.get(),
+            "--bot=" + bot,
         ) + jars.map { "--jar." + it.key + "=" + it.value }
     })
     outputs.upToDateWhen { false }

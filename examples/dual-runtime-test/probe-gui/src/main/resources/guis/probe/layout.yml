@@ -1,0 +1,48 @@
+rows: 3
+title: probe.title
+layout:
+  - "#########"
+  - "NNNNNNNNN"
+  - "P   C   X"
+elements:
+  border:
+    symbol: "#"
+    item:
+      material: GRAY_STAINED_GLASS_PANE
+      name: "<empty>"
+  numbers:
+    symbol: "N"
+    type: collection
+    provider: numbers
+    item-template: number
+  previous:
+    symbol: "P"
+    type: button
+    action: previous_page
+    visible-if: has_previous_page
+    item:
+      material: ARROW
+      name: "<yellow>Previous"
+  next:
+    symbol: "X"
+    type: button
+    action: next_page
+    visible-if: has_next_page
+    item:
+      material: ARROW
+      name: "<yellow>Next"
+  close:
+    symbol: "C"
+    type: button
+    action: close
+    item:
+      material: BARRIER
+      name: "<red>Close"
+templates:
+  number:
+    material: PAPER
+    translation: items.number
+    action: pick
+    click-actions:
+      right: inspect
+      shift-left: mark

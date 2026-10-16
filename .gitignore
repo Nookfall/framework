@@ -7,3 +7,4 @@ out/
 run/
 .kotlin/
 /examples/dual-runtime-test/servers/
+node_modules/

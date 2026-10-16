@@ -182,6 +182,20 @@ public final class ProbeRunner {
         List<String> ownShared = dispatch(plugin.getName().toLowerCase(Locale.ROOT) + ":nookfall-probe-shared");
         check("command-conflict-namespaced", joined(ownShared).contains("shared-name:__NAME__"), "feedback=" + ownShared);
 
+        // Tab completion through Brigadier.
+        CommandSender console = Bukkit.getConsoleSender();
+        List<String> words = Bukkit.getCommandMap().tabComplete(console, label + " echo ");
+        check("command-suggestions", words != null && words.containsAll(List.of("hello", "world")), "suggestions=" + words);
+        List<String> modes = Bukkit.getCommandMap().tabComplete(console, label + " mode s");
+        check("command-suggestions-enum", modes != null && modes.contains("slow") && !modes.contains("fast"),
+                "suggestions=" + modes);
+        List<String> subcommands = Bukkit.getCommandMap().tabComplete(console, label + " ");
+        check("command-suggestions-subcommands", subcommands != null && subcommands.contains("echo")
+                && subcommands.contains("help"), "suggestions=" + subcommands);
+
+        // Utilities against the live server's registries.
+        utilities();
+
         // Listeners.
         Bukkit.getPluginManager().callEvent(new ProbeEvent());
         check("listener", state.listenerHits.get() == 1, "hits=" + state.listenerHits.get());
@@ -248,6 +262,50 @@ public final class ProbeRunner {
 
         // Scheduled methods: interval comes from configuration and changes on reload.
         info("scheduled", String.valueOf(((com.nookfall.framework.internal.NookfallRuntimeImpl) runtime).scheduledTasks()));
+    }
+
+    @SuppressWarnings("deprecation")
+    private void utilities() {
+        var sharpness = io.papermc.paper.registry.RegistryAccess.registryAccess()
+                .getRegistry(io.papermc.paper.registry.RegistryKey.ENCHANTMENT)
+                .get(org.bukkit.NamespacedKey.minecraft("sharpness"));
+        org.bukkit.inventory.ItemStack item = com.nookfall.framework.util.item.ItemBuilder.of(org.bukkit.Material.DIAMOND_SWORD)
+                .name(Component.text("Blade"))
+                .lore(Component.text("Line"))
+                .glow(true)
+                .customModelData(1234)
+                .enchant(sharpness, 3)
+                .flags(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS)
+                .data(com.nookfall.framework.util.item.PersistentData.key(plugin, "id"),
+                        org.bukkit.persistence.PersistentDataType.STRING, "blade-1")
+                .build();
+        var meta = item.getItemMeta();
+        check("item-builder", plain(meta.displayName()).equals("Blade") && meta.hasCustomModelData()
+                && meta.getCustomModelData() == 1234 && meta.getEnchantLevel(sharpness) == 3
+                && meta.hasItemFlag(org.bukkit.inventory.ItemFlag.HIDE_ENCHANTS)
+                && Boolean.TRUE.equals(meta.getEnchantmentGlintOverride()), "meta=" + meta);
+        String base64 = com.nookfall.framework.util.item.Items.toBase64(item);
+        org.bukkit.inventory.ItemStack restored = com.nookfall.framework.util.item.Items.fromBase64(base64);
+        check("item-serialization", restored.isSimilar(item)
+                && com.nookfall.framework.util.item.PersistentData.get(restored,
+                        com.nookfall.framework.util.item.PersistentData.key(plugin, "id"),
+                        org.bukkit.persistence.PersistentDataType.STRING).orElse("").equals("blade-1"), base64);
+        check("materials", com.nookfall.framework.util.item.Materials.findItem("minecraft:diamond_sword")
+                .orElse(null) == org.bukkit.Material.DIAMOND_SWORD
+                && com.nookfall.framework.util.item.Materials.findItem("water").isEmpty(), "lookup failed");
+        World world = Bukkit.getWorlds().getFirst();
+        Location location = new Location(world, 10.5, 64, -3.25, 90f, 10f);
+        var stored = com.nookfall.framework.util.location.StoredLocation.of(location);
+        var parsed = com.nookfall.framework.util.location.StoredLocation.parse(stored.serialize());
+        check("location-serialization", parsed.equals(stored) && parsed.resolve().map(l -> l.equals(location)).orElse(false),
+                stored.serialize());
+        Location surface = world.getHighestBlockAt(world.getSpawnLocation()).getLocation().add(0.5, 1, 0.5);
+        check("safe-location", com.nookfall.framework.util.location.SafeLocations.isSafe(surface)
+                && !com.nookfall.framework.util.location.SafeLocations.isSafe(surface.clone().add(0, -2, 0)),
+                "surface=" + surface);
+        var cuboid = com.nookfall.framework.util.location.Cuboid.between(location, location.clone().add(5, 5, 5));
+        check("cuboid", cuboid.contains(location.clone().add(2, 2, 2)) && !cuboid.contains(location.clone().add(9, 0, 0))
+                && cuboid.volume() == 216, String.valueOf(cuboid));
     }
 
     private void delayedChecks() throws Exception {

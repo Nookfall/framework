@@ -44,9 +44,22 @@ public final class Harness {
             List<String> probes,
             Map<String, String> files,
             List<String> logMustContain,
-            List<String> extraPasses) {}
+            List<String> extraPasses,
+            boolean bot) {
 
-    record Outcome(String version, String scenario, boolean ok, List<String> problems, int passes, Duration time) {}
+        Scenario(String name, List<String> jars, List<String> probes, Map<String, String> files,
+                List<String> logMustContain, List<String> extraPasses) {
+            this(name, jars, probes, files, logMustContain, extraPasses, false);
+        }
+    }
+
+    record Outcome(
+            String version, String scenario, boolean ok, List<String> problems, int passes, Duration time, String skipped) {
+
+        Outcome(String version, String scenario, boolean ok, List<String> problems, int passes, Duration time) {
+            this(version, scenario, ok, problems, passes, time, null);
+        }
+    }
 
     private final Map<String, String> options;
     private final Path work;
@@ -84,7 +97,11 @@ public final class Harness {
                 new Scenario("startup-failure", List.of("alpha.standalone", "beta.standalone"), List.of("ProbeAlpha"),
                         Map.of("ProbeBeta/config.yml", brokenConfig),
                         List.of("ProbeBeta could not start", "config.yml is not valid YAML"),
-                        List.of("failed-startup-cleanup")));
+                        List.of("failed-startup-cleanup")),
+                new Scenario("gui-client", List.of("gui.standalone"), List.of("ProbeGui"), Map.of(), List.of(),
+                        List.of("gui-actions", "gui-sessions-closed", "gui-no-items-moved-in", "gui-player-items-kept",
+                                "gui-number-key-blocked", "gui-reload-move", "gui-reload-broken-rejected"),
+                        true));
         String selected = options.getOrDefault("scenarios", "all");
         if (selected.equals("all")) {
             return all;
@@ -99,6 +116,13 @@ public final class Harness {
         for (String version : options.get("versions").split(",")) {
             Path server = prepareServer(version.strip());
             for (Scenario scenario : scenarios()) {
+                String skip = scenario.bot() ? botUnsupported(version.strip()) : null;
+                if (skip != null) {
+                    Outcome skipped = new Outcome(version.strip(), scenario.name(), true, List.of(), 0, Duration.ZERO, skip);
+                    outcomes.add(skipped);
+                    System.out.printf("[%s] %-24s SKIPPED (%s)%n", version, scenario.name(), skip);
+                    continue;
+                }
                 Outcome outcome = runScenario(version.strip(), server, scenario);
                 outcomes.add(outcome);
                 System.out.printf("[%s] %-24s %s (%d checks, %ds)%s%n", version, scenario.name(),
@@ -183,9 +207,25 @@ public final class Harness {
                 enable-rcon=false
                 enable-query=false
                 motd=Nookfall integration test
+                enforce-secure-profile=false
                 server-port=%d
                 """.formatted(freePort()));
         return dir;
+    }
+
+    /** Returns why the headless client cannot test this version, or null if it can. */
+    private String botUnsupported(String version) throws IOException, InterruptedException {
+        String bot = options.get("bot");
+        if (bot == null || !Files.isDirectory(Path.of(bot, "node_modules"))) {
+            return "gui-bot dependencies not installed (run npm ci in examples/dual-runtime-test/gui-bot)";
+        }
+        Process check = new ProcessBuilder("node", "-e",
+                        "process.exit(require('minecraft-data')(process.argv[1]) ? 0 : 1)", version)
+                .directory(Path.of(bot).toFile())
+                .redirectErrorStream(true)
+                .start();
+        check.getInputStream().readAllBytes();
+        return check.waitFor() == 0 ? null : "minecraft-data has no protocol data for " + version;
     }
 
     private static int freePort() throws IOException {
@@ -234,8 +274,7 @@ public final class Harness {
             Files.writeString(target, file.getValue());
         }
         Path log = server.resolve("logs-" + scenario.name() + ".txt");
-        Process process = new ProcessBuilder(javaFor(version), "-Xms512M", "-Xmx1536M",
-                        "-Dcom.mojang.eula.agree=true", "-jar", "paper.jar", "--nogui")
+        Process process = new ProcessBuilder(javaFor(version), "-Xms512M", "-Xmx1536M", "-jar", "paper.jar", "--nogui")
                 .directory(server.toFile())
                 .redirectErrorStream(true)
                 .start();
@@ -246,6 +285,8 @@ public final class Harness {
         Instant deadline = Instant.now().plus(SCENARIO_TIMEOUT);
         boolean started = false;
         boolean finished = false;
+        Process bot = null;
+        Path botLog = server.resolve("bot-" + scenario.name() + ".txt");
         while (Instant.now().isBefore(deadline) && process.isAlive()) {
             Thread.sleep(500);
             String text;
@@ -254,6 +295,13 @@ public final class Harness {
             }
             if (!started && text.contains("Done (")) {
                 started = true;
+                if (scenario.bot()) {
+                    bot = new ProcessBuilder("node", "bot.js", "127.0.0.1", port(server))
+                            .directory(Path.of(options.get("bot")).toFile())
+                            .redirectErrorStream(true)
+                            .redirectOutput(botLog.toFile())
+                            .start();
+                }
             }
             if (started && probesDone(plugins, scenario)) {
                 finished = true;
@@ -262,6 +310,11 @@ public final class Harness {
             if (started && scenario.probes().isEmpty() && Duration.between(start, Instant.now()).toSeconds() > 5) {
                 finished = true;
                 break;
+            }
+        }
+        if (bot != null) {
+            if (!bot.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)) {
+                bot.destroyForcibly();
             }
         }
         console.println("stop");
@@ -274,6 +327,9 @@ public final class Harness {
             text = output.toString();
         }
         List<String> problems = new ArrayList<>();
+        if (bot != null && bot.exitValue() != 0) {
+            problems.add("gui bot exited with " + bot.exitValue() + " (see " + botLog.getFileName() + ")");
+        }
         if (!started) {
             problems.add("server did not finish starting");
         }
@@ -299,6 +355,9 @@ public final class Harness {
                 }
             }
             String all = Files.readString(results);
+            if (scenario.bot()) {
+                continue;
+            }
             String expectedMode = scenario.jars().stream().filter(j -> j.startsWith(probe.substring(5).toLowerCase()))
                     .findFirst().map(j -> j.endsWith(".shared") ? "SHARED" : "STANDALONE").orElse("?");
             if (!all.contains("INFO mode: " + expectedMode)) {
@@ -307,7 +366,7 @@ public final class Harness {
         }
         for (String pass : scenario.extraPasses()) {
             boolean found = false;
-            for (String probe : List.of("ProbeAlpha", "ProbeBeta")) {
+            for (String probe : List.of("ProbeAlpha", "ProbeBeta", "ProbeGui")) {
                 Path results = plugins.resolve(probe).resolve("results.txt");
                 if (Files.exists(results) && Files.readString(results).contains("PASS " + pass)) {
                     found = true;
@@ -340,6 +399,15 @@ public final class Harness {
         }
         return new Outcome(version, scenario.name(), problems.isEmpty(), problems, passes,
                 Duration.between(start, Instant.now()));
+    }
+
+    private static String port(Path server) throws IOException {
+        for (String line : Files.readAllLines(server.resolve("server.properties"))) {
+            if (line.startsWith("server-port=")) {
+                return line.substring("server-port=".length()).strip();
+            }
+        }
+        throw new IllegalStateException("no server-port");
     }
 
     private static boolean probesDone(Path plugins, Scenario scenario) throws IOException {
@@ -403,7 +471,9 @@ public final class Harness {
         for (Outcome outcome : outcomes) {
             ok &= outcome.ok();
             md.append("| ").append(outcome.version()).append(" | ").append(outcome.scenario()).append(" | ")
-                    .append(outcome.ok() ? "pass" : "FAIL: " + String.join("; ", outcome.problems()).replace("|", "\\|"))
+                    .append(outcome.skipped() != null
+                            ? "skipped: " + outcome.skipped()
+                            : outcome.ok() ? "pass" : "FAIL: " + String.join("; ", outcome.problems()).replace("|", "\\|"))
                     .append(" | ").append(outcome.passes()).append(" | ").append(outcome.time().toSeconds()).append("s |\n");
         }
         Path file = Path.of(options.get("report"));

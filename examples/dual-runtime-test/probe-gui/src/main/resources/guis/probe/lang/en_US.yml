@@ -1,0 +1,5 @@
+probe:
+  title: "Probe <page>/<pages>"
+items:
+  number:
+    name: "<green>Number <number>"

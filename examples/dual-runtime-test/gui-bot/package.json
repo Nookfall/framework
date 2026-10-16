@@ -1,0 +1,10 @@
+{
+  "name": "nookfall-gui-bot",
+  "private": true,
+  "description": "Headless client that drives Nookfall GUI integration tests.",
+  "license": "Apache-2.0",
+  "main": "bot.js",
+  "dependencies": {
+    "mineflayer": "4.39.0"
+  }
+}

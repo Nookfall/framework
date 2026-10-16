@@ -1,0 +1,17 @@
+rows: 1
+title: "Slow"
+layout:
+  - "SSSSSSSSS"
+elements:
+  slow:
+    symbol: "S"
+    type: collection
+    provider: slow
+    item-template: entry
+    loading-item:
+      material: CLOCK
+      name: "Loading"
+templates:
+  entry:
+    material: PAPER
+    name: "Late"

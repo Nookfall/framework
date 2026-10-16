@@ -83,6 +83,9 @@ public final class GuiManagerImpl implements GuiManager, Listener {
     private final BooleanSupplier closed;
     private final Map<String, Bound<?>> bindings = new LinkedHashMap<>();
     private final Map<UUID, GuiSession> sessions = new ConcurrentHashMap<>();
+    /** Open inventories of this manager, so events are matched without asking inventories for their holder. */
+    private final Map<Inventory, GuiSession> inventories = new ConcurrentHashMap<>();
+
     private final Set<String> reportedEnchantments = ConcurrentHashMap.newKeySet();
     private volatile Map<String, Loaded> definitions = Map.of();
 
@@ -305,12 +308,13 @@ public final class GuiManagerImpl implements GuiManager, Listener {
         }
         GuiSession previous = sessions.put(player.getUniqueId(), session);
         if (previous != null) {
-            previous.active = false;
+            deactivate(previous);
         }
+        inventories.put(session.inventory, session);
         player.openInventory(session.inventory);
-        if (player.getOpenInventory().getTopInventory() != session.inventory) {
+        if (!isViewing(player, session)) {
             // Another plugin cancelled the open event.
-            session.active = false;
+            deactivate(session);
             sessions.remove(player.getUniqueId(), session);
         }
     }
@@ -359,11 +363,11 @@ public final class GuiManagerImpl implements GuiManager, Listener {
     /** Closes every session; called when the runtime shuts down. */
     public void shutdown() {
         for (GuiSession session : List.copyOf(sessions.values())) {
-            session.active = false;
             Player player = session.player;
+            boolean viewing = isViewing(player, session);
+            deactivate(session);
             try {
-                if (player.isOnline()
-                        && player.getOpenInventory().getTopInventory().getHolder(false) == session) {
+                if (player.isOnline() && viewing) {
                     player.closeInventory();
                 }
             } catch (RuntimeException e) {
@@ -371,6 +375,19 @@ public final class GuiManagerImpl implements GuiManager, Listener {
             }
         }
         sessions.clear();
+        inventories.clear();
+    }
+
+    private static boolean isViewing(Player player, GuiSession session) {
+        return session.inventory != null
+                && session.inventory.equals(player.getOpenInventory().getTopInventory());
+    }
+
+    private void deactivate(GuiSession session) {
+        session.active = false;
+        if (session.inventory != null) {
+            inventories.remove(session.inventory, session);
+        }
     }
 
     // ---- session operations ----
@@ -393,8 +410,9 @@ public final class GuiManagerImpl implements GuiManager, Listener {
             return;
         }
         if (sessions.remove(session.playerId, session)) {
-            session.active = false;
-            if (session.player.getOpenInventory().getTopInventory().getHolder(false) == session) {
+            boolean viewing = isViewing(session.player, session);
+            deactivate(session);
+            if (viewing) {
                 session.player.closeInventory();
             }
         }
@@ -423,8 +441,9 @@ public final class GuiManagerImpl implements GuiManager, Listener {
             logger.log(Level.SEVERE, "Could not reopen GUI '" + old.guiId + "' after reload", e);
             return;
         }
-        old.active = false;
+        deactivate(old);
         sessions.put(old.playerId, session);
+        inventories.put(session.inventory, session);
         old.player.openInventory(session.inventory);
     }
 
@@ -842,7 +861,7 @@ public final class GuiManagerImpl implements GuiManager, Listener {
     // ---- events ----
 
     private @Nullable GuiSession sessionOf(Inventory top) {
-        return top.getHolder(false) instanceof GuiSession session && session.manager == this ? session : null;
+        return top == null ? null : inventories.get(top);
     }
 
     @EventHandler(priority = EventPriority.LOW)
@@ -902,7 +921,7 @@ public final class GuiManagerImpl implements GuiManager, Listener {
     public void onClose(InventoryCloseEvent event) {
         GuiSession session = sessionOf(event.getInventory());
         if (session != null) {
-            session.active = false;
+            deactivate(session);
             sessions.remove(session.playerId, session);
         }
     }
@@ -911,7 +930,7 @@ public final class GuiManagerImpl implements GuiManager, Listener {
     public void onQuit(PlayerQuitEvent event) {
         GuiSession session = sessions.remove(event.getPlayer().getUniqueId());
         if (session != null) {
-            session.active = false;
+            deactivate(session);
         }
     }
 

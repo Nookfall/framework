@@ -39,5 +39,6 @@ include(
     "examples:dual-runtime-test:probe-alpha",
     "examples:dual-runtime-test:probe-beta",
     "examples:dual-runtime-test:probe-incompatible",
+    "examples:dual-runtime-test:probe-gui",
     "examples:dual-runtime-test:harness",
 )
