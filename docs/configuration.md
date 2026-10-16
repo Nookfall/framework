@@ -101,7 +101,7 @@ successful reload or save.
 | `Duration` | `30s`, `5m`, `1h30m`, `250ms`, `1d` |
 | `UUID`, `Locale` (`en_US`) | text |
 | `Material` | material names |
-| `StoredLocation` | `world,x,y,z,yaw,pitch` |
+| `StoredLocation` | `world;x;y;z;yaw;pitch` |
 | `ItemStack` | a material name, an item section, or `data: <base64>` (below) |
 | `List<T>`, `Set<T>`, `Collection<T>` | lists |
 | `Map<K, V>` | sections; keys may be strings, enums or other scalar types |

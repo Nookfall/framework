@@ -19,7 +19,7 @@ them on a server.
 - Contains only your classes and generated code. Typically a few tens of kilobytes.
 - `plugin.yml` declares `depend: [NookfallFramework]`, so Paper loads the framework first and gives your plugin
   access to its classes.
-- Requires the `NookfallFramework` plugin (`framework-plugin/build/libs/NookfallFramework-0.1.0.jar`).
+- Requires the `NookfallFramework` plugin (`framework-plugin/build/libs/NookfallFramework-0.1.1.jar`).
 - Built by `./gradlew sharedJar` (part of `assemble`).
 
 The framework classes keep their names (`com.nookfall.framework.*`) and the framework plugin relocates its
@@ -70,7 +70,7 @@ You can publish both; their contents differ only in what is bundled.
 
 ```kotlin
 plugins {
-    id("com.nookfall.framework") version "0.1.0"
+    id("com.nookfall.framework") version "0.1.1"
 }
 
 nookfall {
@@ -86,13 +86,23 @@ nookfall {
     loadBefore = listOf()
     storage = true                                       // adds framework-storage
     relocationPrefix = "com.nookfall.examples.homes.libs" // default: <main package>.libs
-    frameworkVersion = "0.1.0"                           // default: the Gradle plugin's version
+    frameworkVersion = "0.1.1"                           // default: the Gradle plugin's version
     paperVersion = "1.21.1-R0.1-SNAPSHOT"                // Paper API to compile against
     addDependencies = true                               // set false to declare dependencies yourself
+    permissions {                                        // written to plugin.yml
+        register("homes.use") {
+            description = "Use /home"
+            default = "true"                             // true, false, op or "not op" (default: op)
+        }
+        register("homes.admin") {
+            children.put("homes.use", true)
+        }
+    }
 }
 ```
 
-The plugin generates `plugin.yml` for both jars; do not add your own. It also:
+The plugin generates `plugin.yml` for both jars; do not add your own. Declare permissions in `permissions { }`:
+Paper treats undeclared permissions as operator-only, so nodes every player should have need `default = "true"`. It also:
 
 - applies the Java 21 toolchain and `--release 21`;
 - adds the Paper API (`compileOnly`), the framework, and the Nookfall and Avaje annotation processors;

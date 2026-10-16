@@ -51,7 +51,7 @@ generates its registration; the runtime builds a Brigadier tree and registers it
 
 ## Status
 
-Version **0.1.0**, the first functional release. Tested on real Paper servers 1.21.1, 1.21.4, 1.21.11, 26.1.2 and
+Version **0.1.1**. [Nookfall Homes](https://nookfall.com/plugins/homes/) is the first plugin built on it. Tested on real Paper servers 1.21.1, 1.21.4, 1.21.11, 26.1.2 and
 26.3 (see [compatibility](docs/compatibility.md)). Artifacts are not yet on a public Maven repository; install
 them locally with `./gradlew publishAllToMavenLocal`. Folia is not supported yet.
 
@@ -74,7 +74,8 @@ Then read the [quick start](docs/quick-start.md).
 | Shipping | [Packaging](docs/packaging.md) · [Compatibility](docs/compatibility.md) · [Testing](docs/testing.md) · [Troubleshooting](docs/troubleshooting.md) |
 | Project | [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md) · [AGENTS.md](AGENTS.md) |
 
-The docs use Starlight-compatible front matter so they can be published on [nookfall.com](https://nookfall.com).
+These docs are internal while the framework is private. Only [`docs/public/`](docs/public/) (a conceptual overview
+and `metadata.json`) is approved for nookfall.com; the website copies that folder and nothing else.
 
 ## Repository layout
 

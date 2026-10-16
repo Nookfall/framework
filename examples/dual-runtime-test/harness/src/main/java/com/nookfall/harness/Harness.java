@@ -243,6 +243,13 @@ public final class Harness {
                 enforce-secure-profile=false
                 server-port=%d
                 """.formatted(freePort()));
+        // Fresh worlds, so the peaceful difficulty above applies (worlds keep their own saved difficulty).
+        for (String world : List.of("world", "world_nether", "world_the_end")) {
+            Path path = dir.resolve(world);
+            if (Files.exists(path)) {
+                deleteRecursively(path);
+            }
+        }
         return dir;
     }
 

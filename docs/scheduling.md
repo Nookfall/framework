@@ -85,4 +85,4 @@ durations that do not parse or are not positive. Configuration references are va
 ## Folia
 
 Execution contexts map to Paper's region, entity, global and async schedulers, so code written against them is
-structured the way Folia requires. Folia itself is **not** supported or tested in 0.1.0.
+structured the way Folia requires. Folia itself is **not** supported or tested in 0.1.x.

@@ -1,0 +1,10 @@
+{
+  "name": "Nookfall Framework",
+  "version": "0.1.1",
+  "availability": "private",
+  "publicRepository": null,
+  "testedPaper": ["1.21.1", "1.21.4", "1.21.11", "26.1.2", "26.3"],
+  "testedOn": "2026-10-16",
+  "runtime": "Java 21 or newer (Java 25 for Paper 26.x); plugins compile to Java 21 bytecode",
+  "unsupported": "Folia, Spigot and other non-Paper servers"
+}

@@ -7,7 +7,7 @@ description: Common errors when building or running Nookfall plugins and how to 
 
 **`No generated <Main>_NookfallIndex was found`** at startup
 : The Nookfall annotation processor did not run. Use the `com.nookfall.framework` Gradle plugin, or add
-  `annotationProcessor("com.nookfall:framework-processor:0.1.0")` and Avaje's `avaje-inject-generator` yourself.
+  `annotationProcessor("com.nookfall:framework-processor:0.1.1")` and Avaje's `avaje-inject-generator` yourself.
 
 **`Several JavaPlugin subclasses found`**
 : Tell the processor which one is the plugin with the compiler option `-Anookfall.plugin=com.example.MyPlugin`.
@@ -19,6 +19,9 @@ description: Common errors when building or running Nookfall plugins and how to 
 **Avaje reports a missing or ambiguous dependency**
 : Wiring is checked at compile time. Make the missing class a bean (`@Singleton`, or one of the Nookfall
   component annotations), or add a qualifier for ambiguous ones. See [Dependency injection](dependency-injection.md).
+
+**`X must be a top-level class: Avaje Inject cannot construct nested classes`**
+: Commands, listeners, GUIs and argument resolvers must be top-level classes. Move the nested class to its own file.
 
 **`@Config` field has an unsupported type**
 : Use a supported type or add a [codec](configuration.md#custom-codecs).

@@ -3,7 +3,7 @@ title: Modules
 description: The Gradle modules of Nookfall Framework, what each contains and which ones a plugin depends on.
 ---
 
-All artifacts use the group `com.nookfall` and version `0.1.0`. The Gradle plugin adds the ones a plugin needs,
+All artifacts use the group `com.nookfall` and version `0.1.1`. The Gradle plugin adds the ones a plugin needs,
 so most projects never list them by hand.
 
 | Module | Contents | Plugin dependency |

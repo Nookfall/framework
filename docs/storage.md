@@ -79,11 +79,16 @@ public CompletableFuture<Integer> total() {
 | `listAsync(sql, mapper, params...)` | All rows mapped |
 | `findAsync(sql, mapper, params...)` | The first row, if any |
 | `queryAsync(connection -> ...)` | Arbitrary JDBC work in auto-commit mode |
-| `transactionAsync(connection -> ...)` | Arbitrary work committed on success, rolled back on any exception |
+| `transactionAsync(connection -> ...)` | Arbitrary work committed on success, rolled back on any exception; retried after deadlocks (below) |
 | `query(...)`, `transaction(...)` | Blocking variants, **not** allowed on server threads (they throw there) |
 
 Parameters are bound positionally with `PreparedStatement`; `UUID`s are bound as strings. SQL errors complete
 the future exceptionally with a `DatabaseException` whose cause is the original `SQLException`.
+
+A transaction that fails with a deadlock or serialization failure (SQL state `40xxx`, MySQL/MariaDB error 1213) has
+been rolled back completely, so it is run again, up to three attempts in total. Keep transaction work free of side
+effects outside the connection. To avoid deadlocks in the first place, take exclusive locks with a single statement
+(for example `INSERT ... ON DUPLICATE KEY UPDATE`) rather than inserting and then selecting `FOR UPDATE`.
 
 Futures complete on database threads. Return to a server thread before touching the game:
 
@@ -94,6 +99,23 @@ repository.homes(player.getUniqueId())
 
 ## Migrations
 
+The simplest way is one SQL file per version in your resources, named `V<version>__<description>.sql`:
+
+```text
+src/main/resources/db/migration/
+├── V1__create_homes.sql
+└── V2__index_owner.sql
+```
+
+```java
+database.migrate(Migration.discover(HomesPlugin.class, "db/migration"));
+```
+
+`discover` lists the directory inside the plugin jar (and on the test classpath), orders the files by version and
+rejects files that do not follow the naming scheme or share a version. Adding a migration means adding a file.
+
+Migrations can also be listed explicitly, including ones written in Java:
+
 ```java
 database.migrate(List.of(
         Migration.resource(1, "create homes", HomesPlugin.class, "db/V1__homes.sql"),
@@ -101,7 +123,10 @@ database.migrate(List.of(
         Migration.code(3, "backfill", connection -> { /* JDBC */ })));
 ```
 
-Each migration runs once, in version order, in its own transaction, and is recorded in `nookfall_migrations`.
+Each migration runs once, in version order, in its own transaction, and is recorded in `nookfall_migrations` under
+the plugin's name, so several plugins can share one MySQL/MariaDB database with their own version numbers. (A table
+created by 0.1.0, which had no plugin column, is upgraded automatically; its rows are assigned to the first plugin
+that migrates afterwards.)
 Re-running `migrate` skips applied versions. Editing the SQL of an already applied migration is reported as an
 error instead of being silently ignored. `migrate` is blocking and, unlike `query`, may run on the server thread,
 because it is meant for startup.

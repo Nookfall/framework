@@ -5,7 +5,7 @@ description: Install Nookfall Framework, create a plugin from the starter templa
 
 ## 1. Install the framework locally
 
-Nookfall Framework 0.1.0 is not published to a public Maven repository yet. Install it into your local Maven
+Nookfall Framework 0.1.1 is not published to a public Maven repository yet. Install it into your local Maven
 repository from a checkout of the framework:
 
 ```sh
@@ -15,7 +15,7 @@ cd framework
 ```
 
 This installs every library module and the `com.nookfall.framework` Gradle plugin under `com.nookfall`,
-version `0.1.0`. You need JDK 21 or newer; Gradle downloads a JDK 21 toolchain when needed.
+version `0.1.1`. You need JDK 21 or newer; Gradle downloads a JDK 21 toolchain when needed.
 
 ## 2. Copy the starter
 
@@ -68,7 +68,7 @@ dependencyResolutionManagement {
 
 ```kotlin
 plugins {
-    id("com.nookfall.framework") version "0.1.0"
+    id("com.nookfall.framework") version "0.1.1"
 }
 
 nookfall {

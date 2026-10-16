@@ -47,9 +47,13 @@ which returns `Optional.empty()` when the world is gone. It is also a supported 
 **`Cuboid`**: an axis-aligned block region: `Cuboid.between(a, b)`, `contains(location)`, `expand(n)`,
 `intersects(other)` and `volume()`.
 
-**`SafeLocations`**: `isSafe(location)` (solid ground, two free blocks, no hazards) and
-`findNearby(location, range)`, which searches up and then down the same block column for the nearest safe
-spot. Call these on the thread that owns the region.
+**`SafeLocations`**: `check(location)` returns a `Safety` value: `SAFE`, `NO_WORLD`, `OUT_OF_BOUNDS` (below the
+minimum height, above the build limit or outside the world border), `OBSTRUCTED` (a block's collision shape would be
+inside the player), `NO_GROUND` (nothing to stand on within one block, unless in water) or `HAZARD` (lava, fire,
+campfires, magma, cactus, berry bushes, powder snow, wither roses, pointed dripstone, portals). It uses the real
+collision shapes, so slabs, carpets, farmland and paths count as ground. `isSafe(location)` is `check(...) == SAFE`;
+`findNearby(location, range)` searches up and then down the same column. Call these on the thread that owns the
+region with its chunks loaded (otherwise they load synchronously).
 
 ## Time (`util.time`)
 
@@ -63,6 +67,10 @@ spot. Call these on the thread that owns the region.
 | `toHuman(duration)` | `1h 30m` |
 | `toCountdown(duration)` | `05:07`, or `1:30:00` from one hour |
 | `toTicks(duration, minimum)` | Server ticks, rounded up |
+
+**`Cooldowns`**: thread-safe in-memory cooldowns keyed by UUID. `start(id, duration)`, `remaining(id)` (rounded up
+to whole seconds, `Duration.ZERO` when over), `active(id)`, `reset(id)`. Expired entries are pruned as you go. Pass a
+clock (`new Cooldowns(clock::millis)`) to test it.
 
 ## Players (`util.player`)
 

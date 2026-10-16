@@ -103,7 +103,7 @@ Rules, all checked when the layout loads (and at compile time for bundled layout
 |---|---|---|
 | `item` (default) | Static decoration | `item`, optional `action`, `click-actions`, `visible-if` |
 | `button` | Static item that does something | `item`, and `action` or `click-actions` (required), `visible-if` |
-| `collection` | Dynamic entries, paginated across all slots with its symbol | `provider`, `item-template`, `page-size` (`auto` = all its slots, or a number), `empty-item`, `loading-item`, `visible-if` |
+| `collection` | Dynamic entries, paginated across all slots with its symbol | `provider`, `item-template`, `variants`, `page-size` (`auto` = all its slots, or a number), `empty-item`, `loading-item`, `visible-if` |
 
 ### Items
 
@@ -228,6 +228,24 @@ GuiEntry.of(home.id().toString(), home)
         .placeholder("world", home.world())
         .material(Material.CYAN_BED);
 ```
+
+An entry can ask to be drawn with another template by naming a **variant**. The layout maps variant names to
+templates, so server owners decide what each state looks like and which clicks it accepts:
+
+```java
+GuiEntry.of(home.id().toString(), home).variant("unavailable");
+```
+
+```yaml
+  homes:
+    type: collection
+    item-template: home
+    variants:
+      unavailable: unavailable-home   # a template under templates:
+```
+
+A variant the layout does not map uses `item-template`, so layouts may ignore variants. Variants must reference
+existing templates (checked when the layout loads and, for bundled layouts, at compile time).
 
 The **id must be stable**: it identifies the entry across refreshes, so a click always reaches the entry that
 was displayed, even if the list changed or the layout was rearranged. Duplicate ids are logged as a warning
