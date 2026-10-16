@@ -1,0 +1,49 @@
+name: Release
+
+# Runs when a maintainer pushes a version tag such as v0.1.0. Creates a draft GitHub release with the jars; a
+# maintainer reviews and publishes it. Maven artifacts are uploaded only when the NOOKFALL_MAVEN_* secrets exist.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            25
+            21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Check the tag matches the project version
+        run: |
+          version=$(grep '^version=' gradle.properties | cut -d= -f2)
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME does not match version $version"; exit 1; }
+      - run: ./gradlew build
+      - name: Collect artifacts
+        run: |
+          mkdir -p dist
+          cp framework-plugin/build/libs/NookfallFramework-*.jar dist/
+          for module in framework-api framework-utils framework-core framework-processor framework-storage framework-testing; do
+            cp $module/build/libs/*.jar dist/
+          done
+          (cd dist && sha256sum *.jar > SHA256SUMS)
+      - name: Create a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* --draft --title "Nookfall Framework ${GITHUB_REF_NAME#v}" \
+            --notes "See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/$GITHUB_REF_NAME/CHANGELOG.md) and the [compatibility matrix](https://github.com/${{ github.repository }}/blob/$GITHUB_REF_NAME/docs/compatibility.md)."
+      - name: Publish Maven artifacts
+        env:
+          NOOKFALL_MAVEN_URL: ${{ secrets.NOOKFALL_MAVEN_URL }}
+          NOOKFALL_MAVEN_USERNAME: ${{ secrets.NOOKFALL_MAVEN_USERNAME }}
+          NOOKFALL_MAVEN_PASSWORD: ${{ secrets.NOOKFALL_MAVEN_PASSWORD }}
+        if: env.NOOKFALL_MAVEN_URL != ''
+        run: ./gradlew publish :framework-gradle-plugin:publish

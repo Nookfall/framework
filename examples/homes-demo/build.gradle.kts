@@ -10,3 +10,12 @@ nookfall {
     authors = listOf("Nookfall")
     storage = true
 }
+
+// Code from docs/ that is not copied from a compiled example; compiled by `check` so the docs match the API.
+val docs = sourceSets.create("docs") {
+    compileClasspath += sourceSets.main.get().compileClasspath + sourceSets.main.get().output
+}
+
+tasks.named("check") {
+    dependsOn(tasks.named(docs.compileJavaTaskName))
+}

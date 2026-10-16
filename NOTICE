@@ -1,0 +1,10 @@
+Nookfall Framework
+Copyright 2026 Nookfall
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Standalone plugin jars built with the Nookfall Gradle plugin bundle (relocated) copies of:
+  - Avaje Inject (Apache License 2.0)  https://avaje.io/inject/
+  - Jakarta Dependency Injection API (Apache License 2.0)  https://github.com/jakartaee/inject
+Jars that use framework-storage also bundle:
+  - HikariCP (Apache License 2.0)  https://github.com/brettwooldridge/HikariCP
