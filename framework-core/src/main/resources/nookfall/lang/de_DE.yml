@@ -1,0 +1,17 @@
+nookfall:
+  command:
+    player-only: "<red>Nur Spieler können diesen Befehl verwenden."
+    console-only: "<red>Dieser Befehl kann nur in der Konsole verwendet werden."
+    no-permission: "<red>Dafür hast du keine Berechtigung."
+    invalid-argument: "<red>Ungültiger Wert für <name>: <gray><value></gray>."
+    invalid-enum: "<red>Ungültiger Wert für <name>: <gray><value></gray>. Möglich: <options>"
+    invalid-duration: "<red>Ungültige Dauer <gray><value></gray>. Verwende z. B. 30s, 5m oder 1h30m."
+    player-not-found: "<red>Spieler <gray><value></gray> wurde nicht gefunden."
+    cooldown: "<red>Bitte warte <remaining>, bevor du das erneut verwendest."
+    internal-error: "<red>Beim Ausführen des Befehls ist ein interner Fehler aufgetreten."
+    unavailable: "<red>Dieser Befehl ist nicht verfügbar, weil das Plugin deaktiviert ist."
+    help-header: "<gold>Befehle für /<command>:"
+    help-entry: "<yellow><usage></yellow><gray><description></gray>"
+  gui:
+    error: "<red>Dieses Menü konnte nicht geöffnet werden. Bitte informiere einen Administrator."
+    action-error: "<red>Etwas ist schiefgelaufen. Bitte versuche es erneut."

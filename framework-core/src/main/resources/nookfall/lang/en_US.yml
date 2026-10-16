@@ -1,0 +1,17 @@
+nookfall:
+  command:
+    player-only: "<red>Only players can use this command."
+    console-only: "<red>This command can only be used from the console."
+    no-permission: "<red>You do not have permission to do that."
+    invalid-argument: "<red>Invalid <name>: <gray><value></gray>."
+    invalid-enum: "<red>Invalid <name> <gray><value></gray>. Options: <options>"
+    invalid-duration: "<red>Invalid duration <gray><value></gray>. Use forms like 30s, 5m or 1h30m."
+    player-not-found: "<red>Player <gray><value></gray> was not found."
+    cooldown: "<red>Please wait <remaining> before using this again."
+    internal-error: "<red>An internal error occurred while running this command."
+    unavailable: "<red>This command is unavailable because the plugin is disabled."
+    help-header: "<gold>Commands for /<command>:"
+    help-entry: "<yellow><usage></yellow><gray><description></gray>"
+  gui:
+    error: "<red>This menu could not be opened. Please tell an administrator."
+    action-error: "<red>Something went wrong. Please try again."

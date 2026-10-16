@@ -1,0 +1,11 @@
+probe:
+  title: "Probe <page>/<pages>"
+items:
+  previous:
+    name: "<yellow>Previous"
+  next:
+    name: "<yellow>Next"
+  number:
+    name: "<green>Number <number>"
+    lore:
+      - "<gray>Click to pick"

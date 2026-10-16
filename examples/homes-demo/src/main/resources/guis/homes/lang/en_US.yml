@@ -1,0 +1,24 @@
+homes:
+  title: "<dark_green>Your Homes <gray>(<home_count>)"
+
+items:
+  previous:
+    name: "<yellow>Previous Page"
+  next:
+    name: "<yellow>Next Page"
+  close:
+    name: "<red>Close"
+  loading:
+    name: "<gray>Loading your homes..."
+  empty:
+    name: "<gray>No homes yet"
+    lore:
+      - "<dark_gray>Use /homes set <name>"
+  home:
+    name: "<green><home_name>"
+    lore:
+      - "<gray>World: <white><world>"
+      - "<gray>Location: <white><x>, <y>, <z>"
+      - ""
+      - "<yellow>Click to teleport!"
+      - "<red>Shift + right-click to delete"

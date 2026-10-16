@@ -1,0 +1,4 @@
+prefix: "<gray>[Probe]</gray> "
+probe:
+  greeting: "Hello <name>"
+  refused: "<prefix><red>Refused."

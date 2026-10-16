@@ -1,0 +1,7 @@
+framework:
+  version: "<gold>Nookfall Framework <white><version></white> <gray>(shared runtime)"
+  plugins-header: "<gold>Plugins using the shared runtime: <white><count>"
+  plugins-entry: "<gray>- <white><name></white> <dark_gray>(<mode>)"
+  reloaded: "<green>Reloaded <name>."
+  reload-failed: "<red>Reload of <name> failed: <reason>"
+  unknown-plugin: "<red>No plugin named <name> uses the shared runtime."

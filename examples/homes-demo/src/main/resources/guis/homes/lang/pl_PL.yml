@@ -1,0 +1,22 @@
+homes:
+  title: "<dark_green>Twoje domy <gray>(<home_count>)"
+
+items:
+  previous:
+    name: "<yellow>Poprzednia strona"
+  next:
+    name: "<yellow>Następna strona"
+  close:
+    name: "<red>Zamknij"
+  loading:
+    name: "<gray>Wczytywanie domów..."
+  empty:
+    name: "<gray>Nie masz jeszcze domów"
+  home:
+    name: "<green><home_name>"
+    lore:
+      - "<gray>Świat: <white><world>"
+      - "<gray>Pozycja: <white><x>, <y>, <z>"
+      - ""
+      - "<yellow>Kliknij, aby się teleportować!"
+      - "<red>Shift + prawy, aby usunąć"

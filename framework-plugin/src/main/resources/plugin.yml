@@ -1,0 +1,7 @@
+name: NookfallFramework
+main: com.nookfall.framework.plugin.NookfallFrameworkPlugin
+version: "${version}"
+api-version: "1.21"
+description: "Shared runtime for plugins built with Nookfall Framework."
+website: "https://nookfall.com"
+authors: ["Nookfall"]

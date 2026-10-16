@@ -1,0 +1,13 @@
+prefix: "<dark_green>Homes <dark_gray>»</dark_gray> "
+homes:
+  created: "<prefix><green>Home <white><home></white> saved."
+  deleted: "<prefix><yellow>Home <white><home></white> deleted."
+  not-found: "<prefix><red>You have no home called <white><home></white>."
+  limit-reached: "<prefix><red>You have reached your limit of <limit> homes."
+  invalid-name: "<prefix><red>Home names may use letters, digits, - and _ (up to 32)."
+  teleporting: "<prefix><gray>Teleporting to <white><home></white> in <delay>. Do not move."
+  teleported: "<prefix><green>Welcome to <white><home></white>."
+  cancelled: "<prefix><red>Teleport cancelled because you moved."
+  unsafe: "<prefix><red>Home <white><home></white> is not safe right now."
+  world-missing: "<prefix><red>The world of <white><home></white> is not loaded."
+  error: "<prefix><red>Something went wrong. Please try again."

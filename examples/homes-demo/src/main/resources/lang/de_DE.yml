@@ -1,0 +1,6 @@
+prefix: "<dark_green>Homes <dark_gray>»</dark_gray> "
+homes:
+  created: "<prefix><green>Home <white><home></white> gespeichert."
+  deleted: "<prefix><yellow>Home <white><home></white> gelöscht."
+  not-found: "<prefix><red>Du hast kein Home namens <white><home></white>."
+  limit-reached: "<prefix><red>Du hast dein Limit von <limit> Homes erreicht."

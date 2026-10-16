@@ -1,0 +1,66 @@
+# Rearrange the letters freely; each element below maps to one symbol.
+rows: 6
+title: homes.title
+
+layout:
+  - "#########"
+  - "#HHHHHHH#"
+  - "#HHHHHHH#"
+  - "#HHHHHHH#"
+  - "#P#####N#"
+  - "####C####"
+
+elements:
+  border:
+    symbol: "#"
+    type: item
+    item:
+      material: GRAY_STAINED_GLASS_PANE
+      name: "<empty>"
+
+  homes:
+    symbol: "H"
+    type: collection
+    provider: homes
+    item-template: home
+    page-size: auto
+    loading-item:
+      material: CLOCK
+      translation: items.loading
+    empty-item:
+      material: BARRIER
+      translation: items.empty
+
+  previous:
+    symbol: "P"
+    type: button
+    action: previous_page
+    visible-if: has_previous_page
+    item:
+      material: ARROW
+      translation: items.previous
+
+  next:
+    symbol: "N"
+    type: button
+    action: next_page
+    visible-if: has_next_page
+    item:
+      material: ARROW
+      translation: items.next
+
+  close:
+    symbol: "C"
+    type: button
+    action: close
+    item:
+      material: BARRIER
+      translation: items.close
+
+templates:
+  home:
+    material: RED_BED
+    translation: items.home
+    action: home_click
+    click-actions:
+      shift-right: delete_home

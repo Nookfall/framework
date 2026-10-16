@@ -1,0 +1,13 @@
+prefix: "<dark_green>Domy <dark_gray>»</dark_gray> "
+homes:
+  created: "<prefix><green>Zapisano dom <white><home></white>."
+  deleted: "<prefix><yellow>Usunięto dom <white><home></white>."
+  not-found: "<prefix><red>Nie masz domu o nazwie <white><home></white>."
+  limit-reached: "<prefix><red>Osiągnięto limit <limit> domów."
+  invalid-name: "<prefix><red>Nazwa domu może zawierać litery, cyfry, - i _ (do 32 znaków)."
+  teleporting: "<prefix><gray>Teleportacja do <white><home></white> za <delay>. Nie ruszaj się."
+  teleported: "<prefix><green>Witaj w <white><home></white>."
+  cancelled: "<prefix><red>Teleportacja anulowana, ponieważ się poruszyłeś."
+  unsafe: "<prefix><red>Dom <white><home></white> nie jest teraz bezpieczny."
+  world-missing: "<prefix><red>Świat domu <white><home></white> nie jest załadowany."
+  error: "<prefix><red>Coś poszło nie tak. Spróbuj ponownie."
