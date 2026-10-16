@@ -1,3 +1,11 @@
+pluginManagement {
+    // Maven Central as a fallback: plugin dependencies such as Kotlin are also published there.
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
 dependencyResolutionManagement {
     repositories {
         gradlePluginPortal()
