@@ -1,0 +1,6 @@
+prefix: "<aqua>Starter <dark_gray>»</dark_gray> "
+starter:
+  welcome: "<prefix><gray>Welcome! This is visit number <white><visits></white>."
+  visitors: "<prefix><gray>Recent visitors: <white><names>"
+  reloaded: "<prefix><green>Reloaded."
+  reload-failed: "<prefix><red>Reload failed, previous settings kept: <reason>"

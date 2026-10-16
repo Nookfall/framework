@@ -45,11 +45,18 @@ public final class Harness {
             Map<String, String> files,
             List<String> logMustContain,
             List<String> extraPasses,
-            boolean bot) {
+            boolean bot,
+            List<String> commands,
+            List<String> filesMustExist) {
 
         Scenario(String name, List<String> jars, List<String> probes, Map<String, String> files,
                 List<String> logMustContain, List<String> extraPasses) {
-            this(name, jars, probes, files, logMustContain, extraPasses, false);
+            this(name, jars, probes, files, logMustContain, extraPasses, false, List.of(), List.of());
+        }
+
+        Scenario(String name, List<String> jars, List<String> probes, Map<String, String> files,
+                List<String> logMustContain, List<String> extraPasses, boolean bot) {
+            this(name, jars, probes, files, logMustContain, extraPasses, bot, List.of(), List.of());
         }
     }
 
@@ -101,7 +108,26 @@ public final class Harness {
                 new Scenario("gui-client", List.of("gui.standalone"), List.of("ProbeGui"), Map.of(), List.of(),
                         List.of("gui-actions", "gui-sessions-closed", "gui-no-items-moved-in", "gui-player-items-kept",
                                 "gui-number-key-blocked", "gui-reload-move", "gui-reload-broken-rejected"),
-                        true));
+                        true),
+                new Scenario("examples-standalone", List.of("hello.standalone", "homes.standalone", "showcase.standalone"),
+                        List.of(), Map.of(),
+                        List.of("[NookfallHello] Nookfall", "[NookfallHomes] Nookfall", "[NookfallGuiShowcase] Nookfall",
+                                "applied database migrations [1]", "Hello, CONSOLE!"),
+                        List.of(), false, List.of("hello"),
+                        List.of("NookfallHomes/data.db", "NookfallHomes/config.yml", "NookfallHomes/guis/homes/layout.yml",
+                                "NookfallGuiShowcase/guis/main/layout.yml", "NookfallHello/lang/pl_PL.yml")),
+                new Scenario("examples-shared",
+                        List.of("framework", "hello.shared", "homes.shared", "showcase.shared"), List.of(), Map.of(),
+                        List.of("Plugins using the shared runtime: 3", "- NookfallHomes (shared)", "Reloaded NookfallHomes."),
+                        List.of(), false, List.of("nookfall plugins", "nookfall reload NookfallHomes"),
+                        List.of("NookfallHomes/data.db")),
+                new Scenario("starter", List.of("starter.standalone"), List.of(), Map.of(),
+                        List.of("[StarterPlugin] Nookfall", "StarterPlugin: applied database migrations [1]"),
+                        List.of(), false, List.of("starter visitors"),
+                        List.of("StarterPlugin/data.db", "StarterPlugin/guis/menu/layout.yml", "StarterPlugin/config.yml")),
+                new Scenario("starter-shared", List.of("framework", "starter.shared"), List.of(), Map.of(),
+                        List.of("[StarterPlugin] Nookfall 0.1.0 (shared) ready"), List.of(), false, List.of(),
+                        List.of("StarterPlugin/data.db")));
         String selected = options.getOrDefault("scenarios", "all");
         if (selected.equals("all")) {
             return all;
@@ -116,7 +142,7 @@ public final class Harness {
         for (String version : options.get("versions").split(",")) {
             Path server = prepareServer(version.strip());
             for (Scenario scenario : scenarios()) {
-                String skip = scenario.bot() ? botUnsupported(version.strip()) : null;
+                String skip = scenario.bot() ? botUnsupported(version.strip()) : missingJar(scenario);
                 if (skip != null) {
                     Outcome skipped = new Outcome(version.strip(), scenario.name(), true, List.of(), 0, Duration.ZERO, skip);
                     outcomes.add(skipped);
@@ -144,6 +170,10 @@ public final class Harness {
             }
             String id = entry.getKey().substring(4);
             Path jar = Path.of(entry.getValue());
+            if (!Files.exists(jar)) {
+                System.out.printf("packaging %-20s not built, skipped%n", id);
+                continue;
+            }
             try (ZipFile zip = new ZipFile(jar.toFile())) {
                 List<String> names = zip.stream().map(e -> e.getName()).toList();
                 String yml = new String(zip.getInputStream(zip.getEntry("plugin.yml")).readAllBytes(), StandardCharsets.UTF_8);
@@ -211,6 +241,15 @@ public final class Harness {
                 server-port=%d
                 """.formatted(freePort()));
         return dir;
+    }
+
+    private String missingJar(Scenario scenario) {
+        for (String id : scenario.jars()) {
+            if (!Files.exists(Path.of(options.get("jar." + id)))) {
+                return Path.of(options.get("jar." + id)).getFileName() + " has not been built";
+            }
+        }
+        return null;
     }
 
     /** Returns why the headless client cannot test this version, or null if it can. */
@@ -303,11 +342,17 @@ public final class Harness {
                             .start();
                 }
             }
-            if (started && probesDone(plugins, scenario)) {
+            if (started && !scenario.probes().isEmpty() && probesDone(plugins, scenario)) {
                 finished = true;
                 break;
             }
-            if (started && scenario.probes().isEmpty() && Duration.between(start, Instant.now()).toSeconds() > 5) {
+            if (started && scenario.probes().isEmpty() && !scenario.bot()) {
+                Thread.sleep(3000);
+                for (String command : scenario.commands()) {
+                    console.println(command);
+                    Thread.sleep(1500);
+                }
+                Thread.sleep(1000);
                 finished = true;
                 break;
             }
@@ -387,6 +432,15 @@ public final class Harness {
                 problems.add("log contains " + forbidden);
             }
         }
+        for (String file : scenario.filesMustExist()) {
+            if (!Files.exists(plugins.resolve(file))) {
+                problems.add("missing file plugins/" + file);
+            }
+        }
+        if (text.contains("Error occurred while enabling")
+                && (scenario.name().startsWith("examples") || scenario.name().startsWith("starter"))) {
+            problems.add("a plugin failed to enable");
+        }
         if (scenario.name().equals("shared-missing-runtime") && Files.exists(plugins.resolve("ProbeAlpha/results.txt"))) {
             problems.add("ProbeAlpha ran without the framework plugin");
         }
@@ -453,7 +507,8 @@ public final class Harness {
             String line;
             while ((line = reader.readLine()) != null) {
                 synchronized (output) {
-                    output.append(line).append('\n');
+                    // Strip ANSI colours so log assertions match plain text.
+                    output.append(line.replaceAll("\u001B\\[[0-9;]*m", "")).append('\n');
                 }
                 file.write((line + "\n").getBytes(StandardCharsets.UTF_8));
             }

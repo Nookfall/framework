@@ -18,3 +18,13 @@ subprojects {
         }
     }
 }
+
+val publishedModules = listOf(
+    "framework-api", "framework-utils", "framework-core", "framework-processor", "framework-storage", "framework-testing")
+
+tasks.register("publishAllToMavenLocal") {
+    group = "publishing"
+    description = "Installs every framework artifact and the Gradle plugin into the local Maven repository."
+    dependsOn(publishedModules.map { ":$it:publishToMavenLocal" })
+    dependsOn(gradle.includedBuild("framework-gradle-plugin").task(":publishToMavenLocal"))
+}

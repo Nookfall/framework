@@ -1,0 +1,19 @@
+gallery:
+  title: "<dark_aqua>Wool <gray>(page <page>/<pages>, <favourites> favourites)"
+  loading:
+    name: "<gray>Loading..."
+  previous:
+    name: "<yellow>Previous page"
+  next:
+    name: "<yellow>Next page"
+  back:
+    name: "<gray>Back"
+  clear:
+    name: "<red>Clear favourites"
+  refresh:
+    name: "<aqua>Refresh"
+  wool:
+    name: "<white><material>"
+    lore:
+      - "<gray>Click: toggle favourite"
+      - "<gray>Shift-click: take one"

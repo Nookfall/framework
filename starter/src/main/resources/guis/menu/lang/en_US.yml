@@ -1,0 +1,8 @@
+menu:
+  title: "<dark_aqua>Starter menu"
+  ping:
+    name: "<aqua>Ping"
+    lore:
+      - "<gray>Clicked <white><clicks></white> times"
+  close:
+    name: "<red>Close"

@@ -122,6 +122,9 @@ public final class NookfallGradlePlugin implements Plugin<Project> {
         });
 
         project.getTasks().named("shadowJar").configure(task -> task.setEnabled(false));
+        // The plain jar has no plugin.yml or framework; mark it so it is not mistaken for a plugin.
+        project.getTasks().named("jar", org.gradle.jvm.tasks.Jar.class)
+                .configure(jar -> jar.getArchiveClassifier().convention("plain"));
         project.getTasks().named("assemble").configure(task -> task.dependsOn(standalone, shared));
         project.afterEvaluate(p -> {
             if (!ext.getMainClass().isPresent()) {

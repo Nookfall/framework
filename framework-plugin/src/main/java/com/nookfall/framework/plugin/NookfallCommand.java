@@ -84,7 +84,10 @@ public final class NookfallCommand {
         return consumers().stream().map(r -> r.plugin().getName()).toList();
     }
 
+    /** Plugins that use this shared runtime, excluding the NookfallFramework plugin itself. */
     private static List<NookfallRuntime> consumers() {
-        return RuntimeRegistry.runtimes();
+        return RuntimeRegistry.runtimes().stream()
+                .filter(runtime -> runtime.plugin().getClass() != NookfallFrameworkPlugin.class)
+                .toList();
     }
 }

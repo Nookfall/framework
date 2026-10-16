@@ -1,0 +1,36 @@
+# A menu defined only in YAML. Buttons use built-in actions: open:<gui>, close.
+rows: 3
+title: main.title
+layout:
+  - "#########"
+  - "#  G S  #"
+  - "####C####"
+elements:
+  border:
+    symbol: "#"
+    item:
+      material: BLACK_STAINED_GLASS_PANE
+      name: "<empty>"
+  gallery:
+    symbol: "G"
+    type: button
+    action: "open:gallery"
+    item:
+      material: PAINTING
+      translation: main.gallery
+  secret:
+    symbol: "S"
+    type: button
+    action: close
+    visible-if: "permission:nookfall.showcase.secret"
+    item:
+      material: ENDER_EYE
+      translation: main.secret
+      glow: true
+  close:
+    symbol: "C"
+    type: button
+    action: close
+    item:
+      material: BARRIER
+      translation: main.close

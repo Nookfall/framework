@@ -1,0 +1,52 @@
+rows: 4
+title: gallery.title
+layout:
+  - "WWWWWWWWW"
+  - "WWWWWWWWW"
+  - "         "
+  - "P B X R N"
+elements:
+  wool:
+    symbol: "W"
+    type: collection
+    provider: materials
+    item-template: wool
+    loading-item:
+      material: CLOCK
+      translation: gallery.loading
+  previous:
+    symbol: "P"
+    type: button
+    action: previous_page
+    visible-if: has_previous_page
+    item: { material: ARROW, translation: gallery.previous }
+  next:
+    symbol: "N"
+    type: button
+    action: next_page
+    visible-if: has_next_page
+    item: { material: ARROW, translation: gallery.next }
+  back:
+    symbol: "B"
+    type: button
+    action: "open:main"
+    item: { material: OAK_DOOR, translation: gallery.back }
+  clear:
+    symbol: "X"
+    type: button
+    action: clear_favourites
+    visible-if: has_favourites
+    item: { material: LAVA_BUCKET, translation: gallery.clear }
+  refresh:
+    symbol: "R"
+    type: button
+    action: refresh
+    item: { material: SUNFLOWER, translation: gallery.refresh }
+templates:
+  wool:
+    material: WHITE_WOOL
+    translation: gallery.wool
+    renderer: favourite_glow
+    action: toggle_favourite
+    click-actions:
+      shift-left: give

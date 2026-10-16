@@ -15,6 +15,9 @@ val jarTasks = listOf(
     "$probes:probe-beta:sharedJar",
     "$probes:probe-incompatible:sharedJar",
     "$probes:probe-gui:standaloneJar",
+    ":examples:hello-world:assemble",
+    ":examples:homes-demo:assemble",
+    ":examples:gui-showcase:assemble",
 )
 
 val toolchains = project.extensions.getByType<JavaToolchainService>()
@@ -49,6 +52,15 @@ tasks.register<JavaExec>("paperTest") {
         "incompatible.shared" to root.file(
             "examples/dual-runtime-test/probe-incompatible/build/libs/ProbeIncompatible-$version-shared.jar"),
         "gui.standalone" to root.file("examples/dual-runtime-test/probe-gui/build/libs/ProbeGui-$version.jar"),
+        "hello.standalone" to root.file("examples/hello-world/build/libs/NookfallHello-$version.jar"),
+        "hello.shared" to root.file("examples/hello-world/build/libs/NookfallHello-$version-shared.jar"),
+        "homes.standalone" to root.file("examples/homes-demo/build/libs/NookfallHomes-$version.jar"),
+        "homes.shared" to root.file("examples/homes-demo/build/libs/NookfallHomes-$version-shared.jar"),
+        "showcase.standalone" to root.file("examples/gui-showcase/build/libs/NookfallGuiShowcase-$version.jar"),
+        "showcase.shared" to root.file("examples/gui-showcase/build/libs/NookfallGuiShowcase-$version-shared.jar"),
+        // Built separately from published artifacts: ./gradlew publishAllToMavenLocal, then build starter/.
+        "starter.standalone" to root.file("starter/build/libs/StarterPlugin-1.0.0.jar"),
+        "starter.shared" to root.file("starter/build/libs/StarterPlugin-1.0.0-shared.jar"),
     ).mapValues { it.value.asFile.absolutePath }
     val bot = root.dir("examples/dual-runtime-test/gui-bot").asFile.absolutePath
     argumentProviders.add(CommandLineArgumentProvider {

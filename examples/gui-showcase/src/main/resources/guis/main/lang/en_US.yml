@@ -1,0 +1,12 @@
+main:
+  title: "<dark_purple>Nookfall GUI showcase"
+  gallery:
+    name: "<light_purple>Wool gallery"
+    lore:
+      - "<gray>A paged collection loaded asynchronously."
+  secret:
+    name: "<gold>Secret"
+    lore:
+      - "<gray>Only visible with nookfall.showcase.secret."
+  close:
+    name: "<red>Close"

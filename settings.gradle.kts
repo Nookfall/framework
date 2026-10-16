@@ -29,6 +29,7 @@ include(
     "framework-core",
     "framework-processor",
     "framework-storage",
+    "framework-testing",
     "framework-plugin",
 )
 
@@ -36,6 +37,7 @@ include(
 include(
     "examples:hello-world",
     "examples:homes-demo",
+    "examples:gui-showcase",
     "examples:dual-runtime-test:probe-alpha",
     "examples:dual-runtime-test:probe-beta",
     "examples:dual-runtime-test:probe-incompatible",

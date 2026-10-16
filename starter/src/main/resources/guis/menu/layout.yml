@@ -1,0 +1,26 @@
+rows: 3
+title: menu.title
+layout:
+  - "#########"
+  - "#   P   #"
+  - "####C####"
+elements:
+  border:
+    symbol: "#"
+    item:
+      material: CYAN_STAINED_GLASS_PANE
+      name: "<empty>"
+  ping:
+    symbol: "P"
+    type: button
+    action: ping
+    item:
+      material: NOTE_BLOCK
+      translation: menu.ping
+  close:
+    symbol: "C"
+    type: button
+    action: close
+    item:
+      material: BARRIER
+      translation: menu.close

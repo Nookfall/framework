@@ -151,10 +151,12 @@ public final class LocalizationImpl implements Localization {
         } catch (IOException e) {
             out.errors.add("lang: " + e.getMessage());
         }
-        if (!merged.containsKey(settings.defaultLocale)
-                && !merged.containsKey(Locale.of(settings.defaultLocale.getLanguage()))) {
-            out.warnings.add("lang: default locale " + settings.defaultLocale
-                    + " has no translation file, falling back to " + FALLBACK);
+        String defaultLanguage = settings.defaultLocale.getLanguage();
+        if (!merged.isEmpty()
+                && !merged.containsKey(settings.defaultLocale)
+                && merged.keySet().stream().noneMatch(l -> l.getLanguage().equals(defaultLanguage))) {
+            out.warnings.add("lang: no translation file for the default locale " + settings.defaultLocale
+                    + "; messages fall back to " + FALLBACK);
         }
         out.snapshot =
                 new Snapshot(new TranslationTable(merged), framework, settings.defaultLocale, settings.clientLocale);
