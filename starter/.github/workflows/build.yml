@@ -8,15 +8,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
       # Nookfall Framework is not on a public Maven repository yet, so install it into the local repository first.
       # Remove these two steps (and mavenLocal() in settings.gradle.kts) once it is published.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: nookfall/framework
           ref: v0.1.0
@@ -26,7 +26,7 @@ jobs:
         working-directory: .nookfall-framework
       - name: Build standalone and shared jars
         run: ./gradlew build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: plugin-jars
           path: build/libs/*.jar

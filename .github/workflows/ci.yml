@@ -15,14 +15,14 @@ jobs:
     name: Build and unit tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: |
             25
             21
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
       # Formatting, processor tests, MockBukkit runtime tests, SQLite and (Docker is available here) MariaDB tests.
       - run: ./gradlew build
       - name: Check that builds are reproducible
@@ -30,7 +30,7 @@ jobs:
           sha256sum framework-plugin/build/libs/*.jar examples/*/build/libs/*.jar > first.sha256
           ./gradlew clean assemble --no-build-cache
           sha256sum -c first.sha256
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: test-reports
@@ -41,12 +41,12 @@ jobs:
     name: Starter template from published artifacts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
       - run: ./gradlew publishAllToMavenLocal
       - run: ./gradlew build
         working-directory: starter
@@ -60,15 +60,15 @@ jobs:
       matrix:
         paper: ['1.21.1', '1.21.4', '1.21.11', '26.1.2', '26.3']
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: |
             25
             21
-      - uses: gradle/actions/setup-gradle@v4
-      - uses: actions/setup-node@v4
+      - uses: gradle/actions/setup-gradle@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: Install the GUI test client
@@ -83,7 +83,7 @@ jobs:
       - name: Report
         if: always()
         run: cat examples/dual-runtime-test/harness/build/paper-test-report.md >> "$GITHUB_STEP_SUMMARY" || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: paper-${{ matrix.paper }}
