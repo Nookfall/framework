@@ -43,7 +43,17 @@ class DurationsTest {
         assertThat(Durations.toHuman(Duration.ofSeconds(3605)))
                 .as("stops at the first gap")
                 .isEqualTo("1h");
-        assertThat(Durations.toHuman(Duration.ofMillis(300))).isEqualTo("300ms");
+        assertThat(Durations.toHuman(Duration.ofMillis(300)))
+                .as("players never see milliseconds")
+                .isEqualTo("<1s");
+        assertThat(Durations.toHuman(Duration.ZERO)).isEqualTo("<1s");
+        assertThat(Durations.toHuman(Duration.ofMillis(1400)))
+                .as("rounded to seconds")
+                .isEqualTo("1s");
+        assertThat(Durations.toHuman(Duration.ofMillis(1500))).isEqualTo("2s");
+        assertThat(Durations.toHuman(Duration.ofMillis(59_600)))
+                .as("rounding carries into minutes")
+                .isEqualTo("1m");
         assertThat(Durations.toCountdown(Duration.ofSeconds(307))).isEqualTo("05:07");
         assertThat(Durations.toCountdown(Duration.ofSeconds(3723))).isEqualTo("1:02:03");
         assertThat(Durations.toCountdown(Duration.ofMillis(1))).as("rounds up").isEqualTo("00:01");

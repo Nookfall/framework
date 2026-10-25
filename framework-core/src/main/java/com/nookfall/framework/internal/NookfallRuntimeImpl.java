@@ -6,6 +6,7 @@ import com.nookfall.framework.RuntimeMode;
 import com.nookfall.framework.command.ArgumentResolver;
 import com.nookfall.framework.config.ConfigService;
 import com.nookfall.framework.gui.GuiManager;
+import com.nookfall.framework.integration.Integrations;
 import com.nookfall.framework.internal.command.CommandManager;
 import com.nookfall.framework.internal.config.ConfigServiceImpl;
 import com.nookfall.framework.internal.gui.GuiManagerImpl;
@@ -81,6 +82,9 @@ public final class NookfallRuntimeImpl implements NookfallRuntime {
         guis = new GuiManagerImpl(plugin, dataFolder, resources, localization, tasks, logger, closed::get);
         commands = new CommandManager(localization, logger, closed::get);
 
+        IntegrationsImpl integrations = new IntegrationsImpl(
+                index.integrations(), Bukkit.getPluginManager()::isPluginEnabled, type -> scope.get(type), logger);
+
         scope = BeanScope.builder()
                 .classLoader(plugin.getClass().getClassLoader())
                 .shutdownHook(false)
@@ -93,6 +97,7 @@ public final class NookfallRuntimeImpl implements NookfallRuntime {
                 .bean(Localization.class, localization)
                 .bean(ConfigService.class, configs)
                 .bean(GuiManager.class, guis)
+                .bean(Integrations.class, integrations)
                 .build();
         closer.add("beans", scope::close);
         // Registered after the bean scope so tasks stop before beans are destroyed.

@@ -259,4 +259,26 @@ final class Env {
     static String kebab(String name) {
         return snake(name).replace('_', '-');
     }
+
+    /** {@code reloadFailed} becomes {@code RELOAD_FAILED}. */
+    static String upperSnake(String name) {
+        return snake(name).toUpperCase(java.util.Locale.ROOT).replace('-', '_');
+    }
+
+    /** {@code home-edit} becomes {@code HOME_EDIT}; names starting with a digit get a {@code GUI_} prefix. */
+    static String constant(String value) {
+        StringBuilder out = new StringBuilder();
+        for (char c : value.toCharArray()) {
+            if (Character.isLetterOrDigit(c)) {
+                out.append(Character.toUpperCase(c));
+            } else if (!out.isEmpty() && out.charAt(out.length() - 1) != '_') {
+                out.append('_');
+            }
+        }
+        while (!out.isEmpty() && out.charAt(out.length() - 1) == '_') {
+            out.setLength(out.length() - 1);
+        }
+        String name = out.toString();
+        return name.isEmpty() || Character.isDigit(name.charAt(0)) ? "GUI_" + name : name;
+    }
 }

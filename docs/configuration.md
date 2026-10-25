@@ -157,6 +157,48 @@ public final class ColorCodec implements ConfigCodec<Color> {
 
 Or put `@Codec` on a single field to use a codec only there. Codec classes need a no-argument constructor.
 
+## Options of enums
+
+A field whose type is an enum (or a list of enums) gets its options written above it, so server owners never have to guess:
+
+```yaml
+# Where the symbol goes.
+# Options:
+#   PREFIX: before the number ($10)
+#   SUFFIX: after the number (10$)
+symbol-position: PREFIX
+```
+
+Describe the options with `@Describe` on the constants. Without descriptions the line is `# Options: A, B, C`. Enums with
+more than 24 constants (such as `Material`) are not listed.
+
+## Comments on classes
+
+`@Comment` on a class is the default comment of every field of that type that has none of its own, so a reusable section
+documents itself. `DatabaseSettings` works this way: embed `private DatabaseSettings database = new DatabaseSettings();`
+and the generated file explains the storage settings.
+
+## Skipping what a version does not know
+
+`@Lenient` on a list, set or map skips entries that cannot be read (a material or entity type from another Minecraft
+version, say) with a warning instead of making the file invalid. Mistakes inside an entry that was read are still errors.
+
+## One file per entry
+
+For data that is naturally a file each (shop categories, kits), `ConfigService.directory(type, "categories", defaults)`
+reads every `*.yml` in the folder into `type`:
+
+```java
+ConfigDirectory<Category> categories = configs.directory(Category.class, "categories", () -> Map.of(
+        "blocks", resourceText("defaults/blocks.yml"),
+        "food", resourceText("defaults/food.yml")));
+Map<String, Category> byName = categories.get(); // file name without .yml, in file name order
+```
+
+The defaults (file name to YAML text) are written only when the folder has no `.yml` files yet. A reload re-reads all files,
+replaces the snapshot atomically, reports every problem of every file, and keeps the previous files if any is invalid.
+`runtime.reload()` includes directories. `ConfigTesting.directory(type, files)` reads files in tests.
+
 ## Validation
 
 | Annotation | Applies to |

@@ -96,6 +96,9 @@ Rules, all checked when the layout loads (and at compile time for bundled layout
 - Every character other than a space is the `symbol` of exactly one element. Spaces are empty slots.
 - Element ids and symbols are unique; unknown keys, actions, conditions, providers, renderers and materials are
   errors. Unused elements and templates are warnings.
+- Every `translation:` must have a `<key>.name` or `<key>.lore` entry in the default locale, either in the GUI's
+  `lang/<locale>.yml` or in the plugin's `lang/<locale>.yml` (which is the runtime fallback order). Framework
+  `nookfall.*` keys are supplied at runtime and exempt.
 
 ### Element types
 
@@ -111,7 +114,7 @@ Rules, all checked when the layout loads (and at compile time for bundled layout
 |---|---|
 | `material` | Required. Item material. A collection entry may override it. |
 | `amount` | 1–99 |
-| `translation` | Uses `<key>.name` and `<key>.lore` from the GUI's translations |
+| `translation` | Uses `<key>.name` and `<key>.lore` from the GUI's translations. Leave it out (and `name`/`lore`) and the key is `items.<id>`: the element id for an element's item, the template name for a template, `items.empty-item` and `items.loading-item` for those items of a collection |
 | `name`, `lore` | Literal MiniMessage, used when there is no `translation` |
 | `flags` | Item flags, for example `[hide_attributes]` |
 | `enchantments` | `{ sharpness: 2 }` (namespaced keys allowed) |
@@ -125,7 +128,7 @@ Rules, all checked when the layout loads (and at compile time for bundled layout
 ### Titles and text
 
 `title` is a translation key if the GUI's translations contain it, otherwise literal MiniMessage. Names, lore and
-titles can use placeholders: `<player>`, `<page>` and `<pages>` (of the first collection), every
+titles can use placeholders (a title is updated in the open window whenever a redraw changes it, so a balance or a page number stays current): `<player>`, `<page>` and `<pages>` (of the first collection), every
 `@GuiPlaceholder`, and, inside collection items, the placeholders of the entry being drawn.
 
 GUI translations live next to the layout and fall back like plugin translations (see
@@ -256,9 +259,13 @@ because clicks on them are ambiguous. Placeholder values are plain text unless t
 Inject `GuiManager`:
 
 ```java
-guis.open(player, "homes");
-guis.open(player, "home-edit", Map.of("home", homeId));
+guis.open(player, Nookfall_GuiIds.HOMES);
+guis.open(player, Nookfall_GuiIds.HOME_EDIT, Map.of("home", homeId));
 ```
+
+The processor generates `Nookfall_GuiIds` in your plugin's main package with one constant per bundled GUI, including
+YAML-only menus (`home-edit` becomes `HOME_EDIT`). Pass those constants to `open(...)` and `refreshAll(...)` instead
+of string literals. GUIs created only in a server's data folder are not bundled and therefore have no constant.
 
 `GuiContext` gives you the player, their locale, `arguments()`, a mutable per-session `state()` map that
 survives refreshes and reloads while the menu is open, page control, `refresh()`, `close()` and `open(...)`.

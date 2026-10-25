@@ -11,6 +11,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 
 /** Scalar codecs. Collections and nested sections are handled by {@link ConfigBinder}. */
@@ -55,6 +58,22 @@ public final class Codecs {
                 StoredLocation.class,
                 codec(raw -> StoredLocation.parse(String.valueOf(raw)), StoredLocation::serialize));
         register(ItemStack.class, new ItemStackCodec());
+        register(
+                Enchantment.class,
+                codec(
+                        raw -> {
+                            String name = String.valueOf(raw)
+                                    .strip()
+                                    .toLowerCase(Locale.ROOT)
+                                    .replace(' ', '_');
+                            NamespacedKey key = NamespacedKey.fromString(name);
+                            Enchantment enchantment = key == null ? null : Registry.ENCHANTMENT.get(key);
+                            if (enchantment == null) {
+                                throw new IllegalArgumentException("unknown enchantment '" + raw + "'");
+                            }
+                            return enchantment;
+                        },
+                        enchantment -> enchantment.getKey().getKey().toUpperCase(Locale.ROOT)));
     }
 
     public <T> void register(Class<T> type, ConfigCodec<T> codec) {

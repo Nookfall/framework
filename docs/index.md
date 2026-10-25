@@ -21,6 +21,7 @@ constructs your classes. Server owners control presentation (menu layouts, item 
 | [Localization](localization.md) | `lang/<locale>.yml` and `@Messages` interfaces | Per-player locales, fallback chain, MiniMessage with safe placeholders, generated message methods |
 | [GUIs](guis.md) | `@Gui` classes with providers, actions, conditions | YAML layouts with pagination, async loading, click types, protection and hot reload |
 | [Scheduling](scheduling.md) | `@Scheduled` methods, `Tasks` | Region/entity/global/async contexts, `Duration`-based API, config-driven intervals, cleanup |
+| [Integrations](integrations.md) | `@Integration` classes behind your own interfaces | Constructs them only when the other plugins are enabled, on first use, and survives a missing or broken plugin |
 | [Storage](storage.md) | SQL and migrations | Pooled SQLite/MySQL/MariaDB, bounded async executor, transactions, migrations |
 | [Utilities](utilities.md) | — | Items, locations, durations, players, persistent data |
 

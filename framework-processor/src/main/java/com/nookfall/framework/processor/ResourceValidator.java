@@ -4,12 +4,20 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -17,8 +25,8 @@ import org.yaml.snakeyaml.error.YAMLException;
 
 /**
  * Checks bundled resources against declarations when the resource directory is known (option
- * {@code nookfall.resources}): message keys must exist in the default locale file and GUI layouts must only reference
- * declared handlers.
+ * {@code nookfall.resources}): message keys and placeholders must match the default locale files, and GUI layouts must
+ * only reference declared handlers and translation keys.
  */
 final class ResourceValidator {
 
@@ -26,13 +34,20 @@ final class ResourceValidator {
     private final Path root;
     private final String defaultLocale;
 
+    private static final Pattern ESCAPED_TAG = Pattern.compile("\\\\<[^<>]*>");
+    private static final Pattern TAG = Pattern.compile("<([^<>]+)>");
+    /** Matches files the runtime loads as locales; {@code settings.yml} and notes are ignored. */
+    private static final Pattern LOCALE_FILE = Pattern.compile("[a-z]{2,3}(_[A-Z]{2})?\\.yml");
+
+    private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
+
     ResourceValidator(Env env, Path root, String defaultLocale) {
         this.env = env;
         this.root = root;
         this.defaultLocale = defaultLocale;
     }
 
-    void checkMessages(TypeElement type, Map<String, ExecutableElement> keys) {
+    void checkMessages(TypeElement type, Map<String, ExecutableElement> keys, Map<String, Set<String>> placeholders) {
         Path file = root.resolve("lang").resolve(defaultLocale + ".yml");
         if (!Files.exists(file)) {
             env.error(
@@ -41,15 +56,109 @@ final class ResourceValidator {
                             + " does not exist");
             return;
         }
-        Map<String, Object> flat = flatten(load(type, file));
-        if (flat == null) {
-            return;
-        }
-        keys.forEach((key, method) -> {
-            if (!flat.containsKey(key)) {
-                env.error(method, "Translation key '" + key + "' is missing from " + root.relativize(file));
+        for (Path locale : yamlFiles(root.resolve("lang"))) {
+            Map<String, Object> flat = flatten(load(type, locale));
+            if (flat == null) {
+                continue;
             }
-        });
+            if (locale.equals(file)) {
+                keys.forEach((key, method) -> {
+                    if (!flat.containsKey(key)) {
+                        env.error(method, "Translation key '" + key + "' is missing from " + root.relativize(file));
+                    }
+                });
+            }
+            checkPlaceholders(locale, flat, keys, placeholders);
+        }
+    }
+
+    /**
+     * Every MiniMessage {@code <placeholder>} that is not a known tag must be a parameter of the method that owns the
+     * key. Parsing with MiniMessage keeps the check in step with tag support; unknown tags survive as literal text.
+     */
+    private void checkPlaceholders(
+            Path file,
+            Map<String, Object> flat,
+            Map<String, ExecutableElement> keys,
+            Map<String, Set<String>> placeholders) {
+        for (Map.Entry<String, ExecutableElement> entry : keys.entrySet()) {
+            Object value = flat.get(entry.getKey());
+            if (value == null) {
+                continue;
+            }
+            Set<String> used = new LinkedHashSet<>();
+            collectPlaceholders(value, used);
+            // Framework-provided tags: <prefix> inserts the language prefix, <empty> renders nothing.
+            used.remove("prefix");
+            used.remove("empty");
+            for (String name : used) {
+                if (!placeholders.getOrDefault(entry.getKey(), Set.of()).contains(name)) {
+                    env.error(
+                            entry.getValue(),
+                            "Placeholder <" + name + "> in " + root.relativize(file) + " for key '" + entry.getKey()
+                                    + "' is not a parameter; add a parameter or use @Param");
+                }
+            }
+        }
+    }
+
+    private static void collectPlaceholders(Object value, Set<String> out) {
+        if (value instanceof String text) {
+            collectPlaceholders(text, out);
+        } else if (value instanceof List<?> lines) {
+            for (Object line : lines) {
+                if (line instanceof String text) {
+                    collectPlaceholders(text, out);
+                }
+            }
+        }
+    }
+
+    private static void collectPlaceholders(String template, Set<String> out) {
+        // Escaped tags are literal text, not placeholders.
+        String text = ESCAPED_TAG.matcher(template).replaceAll("");
+        try {
+            Component parsed = MINI_MESSAGE.deserialize(text);
+            Matcher tags = TAG.matcher(PlainTextComponentSerializer.plainText().serialize(parsed));
+            while (tags.find()) {
+                out.add(tags.group(1));
+            }
+        } catch (RuntimeException ignored) {
+            // Malformed MiniMessage is reported at runtime; do not turn it into a compile-time placeholder error.
+        }
+    }
+
+    /** Ids of GUIs bundled as {@code guis/<id>/layout.yml}, for generated constants. */
+    Set<String> guiIds() {
+        Path guis = root.resolve("guis");
+        if (!Files.isDirectory(guis)) {
+            return Set.of();
+        }
+        try (Stream<Path> entries = Files.list(guis)) {
+            return entries.filter(Files::isDirectory)
+                    .filter(dir -> Files.isRegularFile(dir.resolve("layout.yml")))
+                    .map(dir -> dir.getFileName().toString())
+                    .sorted()
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+        } catch (IOException e) {
+            env.note("Could not list " + root.relativize(guis) + ": " + e.getMessage());
+            return Set.of();
+        }
+    }
+
+    private List<Path> yamlFiles(Path dir) {
+        if (!Files.isDirectory(dir)) {
+            return List.of();
+        }
+        try (Stream<Path> entries = Files.list(dir)) {
+            return entries.filter(file ->
+                            LOCALE_FILE.matcher(file.getFileName().toString()).matches())
+                    .sorted()
+                    .toList();
+        } catch (IOException e) {
+            env.note("Could not list " + root.relativize(dir) + ": " + e.getMessage());
+            return List.of();
+        }
     }
 
     void checkGui(TypeElement type, String id, GuiAnalyzer.Declared declared) {
@@ -66,6 +175,10 @@ final class ResourceValidator {
             return;
         }
         String where = root.relativize(file) + ": ";
+        Set<String> translationKeys = guiTranslationKeys(type, id);
+        String translationFiles =
+                root.relativize(root.resolve("guis").resolve(id).resolve("lang").resolve(defaultLocale + ".yml"))
+                        + " or " + root.relativize(root.resolve("lang").resolve(defaultLocale + ".yml"));
         Object rows = yaml.get("rows");
         if (!(rows instanceof Integer r) || r < 1 || r > 6) {
             env.error(type, where + "rows must be a whole number from 1 to 6");
@@ -93,6 +206,7 @@ final class ResourceValidator {
                         GuiAnalyzer.BUILTIN_CONDITIONS);
                 actions(type, where + path, element, declared);
                 templates(type, where + path, element, yaml.get("templates"));
+                translations(type, where + path, element, translationKeys, translationFiles);
                 if (element.get("item") instanceof Map<?, ?> item) {
                     actions(type, where + path + ".item", item, declared);
                     reference(
@@ -110,6 +224,8 @@ final class ResourceValidator {
             for (Map.Entry<?, ?> entry : templates.entrySet()) {
                 if (entry.getValue() instanceof Map<?, ?> template) {
                     actions(type, where + "templates." + entry.getKey(), template, declared);
+                    translations(
+                            type, where + "templates." + entry.getKey(), template, translationKeys, translationFiles);
                     reference(
                             type,
                             where + "templates." + entry.getKey() + ".renderer",
@@ -153,6 +269,43 @@ final class ResourceValidator {
                             path + ".variants." + variant.getKey() + " '" + variant.getValue()
                                     + "' is not defined under templates");
                 }
+            }
+        }
+    }
+
+    /** Keys from the GUI's default-locale file and the plugin's default-locale file, which is the lookup order. */
+    private Set<String> guiTranslationKeys(TypeElement type, String id) {
+        Set<String> keys = new LinkedHashSet<>();
+        for (Path file : List.of(
+                root.resolve("guis").resolve(id).resolve("lang").resolve(defaultLocale + ".yml"),
+                root.resolve("lang").resolve(defaultLocale + ".yml"))) {
+            if (!Files.exists(file)) {
+                continue;
+            }
+            Map<String, Object> flat = flatten(load(type, file));
+            if (flat != null) {
+                keys.addAll(flat.keySet());
+            }
+        }
+        return keys;
+    }
+
+    /**
+     * {@code translation: key} resolves {@code key.name} and {@code key.lore}; a bundled layout naming a key the
+     * default locale cannot provide is almost always a typo. Framework-provided {@code nookfall.*} keys are exempt.
+     */
+    private void translations(TypeElement type, String path, Map<?, ?> section, Set<String> keys, String files) {
+        if (section.get("translation") instanceof String key
+                && !key.startsWith("nookfall.")
+                && !keys.contains(key + ".name")
+                && !keys.contains(key + ".lore")) {
+            env.error(
+                    type,
+                    path + ".translation '" + key + "' has no " + key + ".name or " + key + ".lore entry in " + files);
+        }
+        for (String child : List.of("item", "empty-item", "loading-item")) {
+            if (section.get(child) instanceof Map<?, ?> item) {
+                translations(type, path + "." + child, item, keys, files);
             }
         }
     }

@@ -3,14 +3,19 @@ package com.nookfall.framework.testing;
 import com.nookfall.framework.ReloadResult;
 import com.nookfall.framework.config.ConfigException;
 import com.nookfall.framework.config.ConfigRef;
+import com.nookfall.framework.config.ConfigService;
 import com.nookfall.framework.internal.config.ConfigServiceImpl;
 import com.nookfall.framework.spi.ConfigSpec;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -60,6 +65,59 @@ public final class ConfigTesting {
             delete(directory);
         }
     }
+
+    /**
+     * Reads a folder of files into a class as the runtime does for {@link ConfigService#directory}. The result is read
+     * once; the folder is temporary.
+     *
+     * @param files file name without {@code .yml} to YAML text
+     * @throws ConfigException listing every problem if a file is invalid
+     */
+    public static <T> ConfigDirectoryResult<T> directory(Class<T> type, Map<String, String> files) {
+        Path directory;
+        try {
+            directory = Files.createTempDirectory("nookfall-config-test");
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        try {
+            Files.createDirectories(directory.resolve("files"));
+            for (Map.Entry<String, String> file : files.entrySet()) {
+                Files.writeString(directory.resolve("files").resolve(file.getKey() + ".yml"), file.getValue());
+            }
+            Logger logger = Logger.getLogger("ConfigTesting");
+            List<String> warnings = new ArrayList<>();
+            logger.setUseParentHandlers(false);
+            logger.addHandler(new Handler() {
+                @Override
+                public void publish(LogRecord record) {
+                    warnings.add(record.getMessage());
+                }
+
+                @Override
+                public void flush() {}
+
+                @Override
+                public void close() {}
+            });
+            ConfigServiceImpl service = new ConfigServiceImpl(directory, List.of(), logger);
+            try {
+                return new ConfigDirectoryResult<>(
+                        service.directory(type, "files", null).get(), warnings);
+            } finally {
+                for (Handler handler : logger.getHandlers()) {
+                    logger.removeHandler(handler);
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        } finally {
+            delete(directory);
+        }
+    }
+
+    /** What a directory test read: the values by file name and the warnings. */
+    public record ConfigDirectoryResult<T>(Map<String, T> values, List<String> warnings) {}
 
     @SuppressWarnings("unchecked")
     private static <T> ConfigSpec<T> spec(Class<T> type) {

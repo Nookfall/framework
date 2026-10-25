@@ -42,6 +42,7 @@ public final class NookfallProcessor extends AbstractProcessor {
     private static final List<String> TRIGGERS = List.of(
             Names.COMMAND,
             Names.LISTENER_COMPONENT,
+            Names.INTEGRATION,
             Names.CONFIG,
             Names.MESSAGES,
             Names.GUI,
@@ -213,6 +214,30 @@ public final class NookfallProcessor extends AbstractProcessor {
             importBean(pkg, type, !requires.isEmpty(), imported);
         }
 
+        for (TypeElement type : ElementFilter.typesIn(annotated(round, Names.INTEGRATION))) {
+            if (!env.checkInstantiable(type)) {
+                continue;
+            }
+            var annotation = env.annotation(type, Names.INTEGRATION);
+            TypeMirror provides = env.classValue(annotation, "value");
+            List<String> plugins = env.strings(annotation, "plugins");
+            if (plugins.isEmpty() || plugins.stream().anyMatch(String::isBlank)) {
+                env.error(type, annotation, "@Integration needs at least one plugin name in 'plugins'");
+                continue;
+            }
+            if (provides == null || !env.types.isAssignable(type.asType(), env.types.erasure(provides))) {
+                env.error(
+                        type,
+                        annotation,
+                        type.getSimpleName() + " must implement or extend the type named in @Integration.value");
+                continue;
+            }
+            PackageModel pkg = model.apply(type);
+            pkg.integrations.add("new com.nookfall.framework.spi.IntegrationSpec(" + type.getQualifiedName()
+                    + ".class, " + env.erasure(provides) + ".class, " + Env.listOf(plugins) + ")");
+            importBean(pkg, type, true, imported);
+        }
+
         GuiAnalyzer guis = new GuiAnalyzer(env);
         for (TypeElement type : ElementFilter.typesIn(annotated(round, Names.GUI))) {
             String binding = guis.analyze(type);
@@ -255,12 +280,18 @@ public final class NookfallProcessor extends AbstractProcessor {
                 continue;
             }
             if (resources != null) {
-                resources.checkMessages(type, result.keys());
+                resources.checkMessages(type, result.keys(), result.placeholders());
             }
             String pkg = env.packageOf(type);
             write(pkg.isEmpty() ? result.simpleName() : pkg + "." + result.simpleName(), result.source(), type);
+            if (!result.constants().isEmpty()) {
+                String keys = result.interfaceName() + "_NookfallKeys";
+                write(pkg.isEmpty() ? keys : pkg + "." + keys, result.keysSource(pkg), type);
+            }
         }
+        Set<String> guiIds = new LinkedHashSet<>(guis.types.keySet());
         if (resources != null) {
+            guiIds.addAll(resources.guiIds());
             guis.declared.forEach((id, declared) -> resources.checkGui(guis.types.get(id), id, declared));
         }
 
@@ -270,8 +301,41 @@ public final class NookfallProcessor extends AbstractProcessor {
         for (PackageModel pkg : packages.values()) {
             writeComponents(pkg);
         }
+        writeGuiIds(main, guiIds);
         writeIndex(main, packages.values());
         writeMarker(main);
+    }
+
+    /** Constants for the GUI ids bundled with this plugin, so Java never opens a GUI with a string literal. */
+    private void writeGuiIds(TypeElement main, Set<String> ids) throws IOException {
+        if (ids.isEmpty()) {
+            return;
+        }
+        String pkg = env.packageOf(main);
+        String name = "Nookfall_GuiIds";
+        Map<String, String> byConstant = new LinkedHashMap<>();
+        for (String id : new java.util.TreeSet<>(ids)) {
+            String constant = Env.constant(id);
+            String existing = byConstant.putIfAbsent(constant, id);
+            if (existing != null && !existing.equals(id)) {
+                env.error(
+                        main,
+                        "GUI ids '" + existing + "' and '" + id + "' would both generate constant " + constant
+                                + "; rename one");
+            }
+        }
+        StringBuilder out = header(pkg);
+        out.append("public final class ").append(name).append(" {\n\n");
+        out.append("    private ").append(name).append("() {}\n");
+        for (Map.Entry<String, String> entry : byConstant.entrySet()) {
+            out.append("\n    public static final String ")
+                    .append(entry.getKey())
+                    .append(" = ")
+                    .append(Env.literal(entry.getValue()))
+                    .append(';');
+        }
+        out.append("\n}\n");
+        write(pkg.isEmpty() ? name : pkg + "." + name, out.toString(), main);
     }
 
     /**
@@ -312,6 +376,7 @@ public final class NookfallProcessor extends AbstractProcessor {
                 || env.has(type, Names.AVAJE_FACTORY)
                 || env.has(type, Names.COMMAND)
                 || env.has(type, Names.LISTENER_COMPONENT)
+                || env.has(type, Names.INTEGRATION)
                 || env.has(type, Names.GUI)
                 || env.has(type, Names.COMMAND_ARGUMENT);
     }
@@ -369,6 +434,7 @@ public final class NookfallProcessor extends AbstractProcessor {
             method(out, "com.nookfall.framework.spi.ConfigSpec<?>", "configs", pkg.configs);
             method(out, "com.nookfall.framework.spi.GuiBinding<?>", "guis", pkg.guis);
             method(out, "com.nookfall.framework.spi.ScheduledSpec<?>", "scheduled", pkg.scheduled);
+            method(out, "com.nookfall.framework.spi.IntegrationSpec", "integrations", pkg.integrations);
             out.append("}\n");
             write(pkg.qualified(COMPONENTS), out.toString(), origins);
         }
@@ -457,6 +523,7 @@ public final class NookfallProcessor extends AbstractProcessor {
             {"com.nookfall.framework.spi.ConfigSpec<?>", "configs"},
             {"com.nookfall.framework.spi.GuiBinding<?>", "guis"},
             {"com.nookfall.framework.spi.ScheduledSpec<?>", "scheduled"},
+            {"com.nookfall.framework.spi.IntegrationSpec", "integrations"},
         };
         for (String[] part : parts) {
             out.append("\n    @Override\n    public java.util.List<")

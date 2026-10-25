@@ -46,7 +46,19 @@ public interface StarterMessages {
   `Component`s as-is, everything else as plain text.
 
 When the processor can see your resources (the Gradle plugin configures this), it checks that every key exists in
-the default-locale file and fails the build otherwise.
+the default-locale file and fails the build otherwise. It also parses every bundled locale with MiniMessage: a
+`<placeholder>` that is not a known tag must be a parameter of the method that owns the key (or the framework tags
+`prefix` and `empty`), so typos fail the build instead of appearing as literal text at runtime. Literal angle
+brackets can be escaped as `\<text>`; escaped tags are not treated as placeholders.
+
+### Generated key constants
+
+Every `@Messages` interface also generates `<Interface>_NookfallKeys`, with one `public static final String` per
+method named after the method. Use it for imperative lookups so the key cannot drift from the interface:
+
+```java
+localization.send(player, StarterMessages_NookfallKeys.WELCOME, Arg.number("visits", 3));
+```
 
 ## Imperative access
 

@@ -89,6 +89,23 @@ class ValidDeclarationsTest {
             }
             """;
 
+    static final String HOOK = """
+            package demo.hooks;
+
+            public interface PayHook { boolean pay(String player); }
+            """;
+
+    static final String INTEGRATION = """
+            package demo.hooks;
+
+            import com.nookfall.framework.integration.Integration;
+
+            @Integration(value = PayHook.class, plugins = "Vault")
+            public final class VaultPayHook implements PayHook {
+                public boolean pay(String player) { return true; }
+            }
+            """;
+
     static final String CONFIG = """
             package demo;
 
@@ -144,6 +161,7 @@ class ValidDeclarationsTest {
             public interface HomeMessages {
                 @Key("created") void created(Player player, String home);
                 void deleted(Player player, @Param("home") String name, int remaining);
+                @Key("not-found") void notFound(Player player, String home);
                 Component title(java.util.Locale locale);
             }
             """;
@@ -215,6 +233,15 @@ class ValidDeclarationsTest {
             }
             """;
 
+    static final String USES_GENERATED_CONSTANTS = """
+            package demo;
+
+            public final class UsesGeneratedConstants {
+                public final String key = HomeMessages_NookfallKeys.CREATED;
+                public final String gui = Nookfall_GuiIds.HOMES;
+            }
+            """;
+
     @Test
     void fullPluginCompilesAndAvajeWiresGeneratedBeans() {
         Fixtures.Result compilation = compile(
@@ -222,13 +249,16 @@ class ValidDeclarationsTest {
                 source("demo.HomesCommand", COMMAND),
                 source("demo.listeners.JoinListener", LISTENER),
                 source("demo.listeners.VaultListener", OPTIONAL_LISTENER),
+                source("demo.hooks.PayHook", HOOK),
+                source("demo.hooks.VaultPayHook", INTEGRATION),
                 source("demo.HomesConfig", CONFIG),
                 source("demo.Cleaner", CONSUMER),
                 source("demo.HomeMessages", MESSAGES),
                 source("demo.HomesGui", GUI),
                 source("demo.Home", HOME),
                 source("demo.HomeResolver", RESOLVER),
-                source("demo.VisitCommand", RESOLVER_COMMAND));
+                source("demo.VisitCommand", RESOLVER_COMMAND),
+                source("demo.UsesGeneratedConstants", USES_GENERATED_CONSTANTS));
         assertThat(compilation.errors()).isEmpty();
         assertThat(compilation.success()).as(compilation.output()).isTrue();
         assertThat(compilation.hasGenerated("demo.DemoPlugin_NookfallIndex"))
@@ -240,6 +270,9 @@ class ValidDeclarationsTest {
         assertThat(compilation.hasGenerated("demo.listeners.Nookfall_Components"))
                 .as("demo.listeners.Nookfall_Components in %s", Fixtures.generatedFiles(compilation))
                 .isTrue();
+        assertThat(compilation.hasGenerated("demo.hooks.Nookfall_Prototypes"))
+                .as("integrations are on-demand (prototype) beans, not created at startup")
+                .isTrue();
         assertThat(compilation.hasGenerated("demo.listeners.Nookfall_Prototypes"))
                 .as("demo.listeners.Nookfall_Prototypes in %s", Fixtures.generatedFiles(compilation))
                 .isTrue();
@@ -249,6 +282,13 @@ class ValidDeclarationsTest {
         assertThat(compilation.hasGenerated("demo.HomeMessages_NookfallMessages"))
                 .as("demo.HomeMessages_NookfallMessages in %s", Fixtures.generatedFiles(compilation))
                 .isTrue();
+        assertThat(compilation.generatedSource("demo.HomeMessages_NookfallKeys"))
+                .contains("public static final String CREATED = \"homes.created\";")
+                .contains("public static final String DELETED = \"homes.deleted\";")
+                .contains("public static final String NOT_FOUND = \"homes.not-found\";")
+                .contains("public static final String TITLE = \"homes.title\";");
+        assertThat(compilation.generatedSource("demo.Nookfall_GuiIds"))
+                .contains("public static final String HOMES = \"homes\";");
         // Avaje generated DI classes for the imported and generated beans.
         assertThat(compilation.hasGenerated("demo.HomesCommand$DI"))
                 .as("demo.HomesCommand$DI in %s", Fixtures.generatedFiles(compilation))
@@ -295,9 +335,13 @@ class ValidDeclarationsTest {
         Files.createDirectories(resources.resolve("lang"));
         Files.writeString(resources.resolve("lang/en_US.yml"), """
                 homes:
-                  created: "Created <home>"
+                  created: "<gray>Created <home></gray>"
                   deleted: "Deleted <home> (<remaining> left)"
-                  title: "Homes"
+                  not-found: "<red>No home called <home>"
+                  title: '<prefix><empty>Homes \\<literal>'
+                items:
+                  close:
+                    name: "Close"
                 """);
         Files.createDirectories(resources.resolve("guis/homes"));
         Files.writeString(resources.resolve("guis/homes/layout.yml"), """
@@ -310,13 +354,33 @@ class ValidDeclarationsTest {
                   homes: { symbol: "H", type: collection, provider: homes, item-template: home }
                   prev: { symbol: "P", type: button, action: previous_page, visible-if: has_previous_page, item: { material: ARROW } }
                   next: { symbol: "N", type: button, action: next_page, visible-if: "!can_delete", item: { material: ARROW } }
-                  close: { symbol: "C", type: button, action: close, item: { material: BARRIER } }
+                  close: { symbol: "C", type: button, action: close, item: { material: BARRIER, translation: items.close } }
                 templates:
-                  home: { material: RED_BED, action: home_click, renderer: icon, click-actions: { right: info } }
+                  home: { material: RED_BED, action: home_click, renderer: icon, translation: items.home, click-actions: { right: info } }
+                """);
+        Files.createDirectories(resources.resolve("guis/homes/lang"));
+        Files.writeString(resources.resolve("guis/homes/lang/en_US.yml"), """
+                items:
+                  home:
+                    name: "<home>"
+                    lore:
+                      - "Click to visit"
+                """);
+        // A YAML-only GUI has no class but still belongs in the generated id constants.
+        Files.createDirectories(resources.resolve("guis/profile"));
+        Files.writeString(resources.resolve("guis/profile/layout.yml"), """
+                rows: 1
+                layout:
+                  - "AAAAAAAAA"
+                elements:
+                  a: { symbol: "A", type: button, action: close, item: { material: STONE } }
                 """);
         Fixtures.Result compilation =
                 compile(resources, source("demo.HomeMessages", MESSAGES), source("demo.HomesGui", GUI));
         assertThat(compilation.errors()).isEmpty();
         assertThat(compilation.success()).as(compilation.output()).isTrue();
+        assertThat(compilation.generatedSource("demo.Nookfall_GuiIds"))
+                .contains("public static final String HOMES = \"homes\";")
+                .contains("public static final String PROFILE = \"profile\";");
     }
 }

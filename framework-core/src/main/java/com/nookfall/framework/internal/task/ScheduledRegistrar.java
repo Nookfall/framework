@@ -109,7 +109,7 @@ public final class ScheduledRegistrar {
                     previous.cancel();
                 }
                 start();
-                logger.info("Rescheduled " + name() + " to run every " + Durations.toHuman(period));
+                logger.info("Rescheduled " + name() + " to run every " + Durations.toCompact(period));
             } catch (IllegalArgumentException e) {
                 logger.severe(
                         "Could not reschedule " + name() + ": " + e.getMessage() + " (keeping the previous schedule)");

@@ -3,6 +3,7 @@ package com.nookfall.framework.processor;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,8 +20,37 @@ import javax.lang.model.type.TypeMirror;
 /** Validates {@code @Messages} interfaces and generates their implementations. */
 final class MessagesAnalyzer {
 
-    /** A generated implementation and the keys it uses (for checking bundled translations). */
-    record Result(String simpleName, String source, Map<String, ExecutableElement> keys) {}
+    /**
+     * A generated implementation, the keys it uses (for checking bundled translations) and the placeholders each key
+     * expects (for checking translation text).
+     */
+    record Result(
+            String interfaceName,
+            String simpleName,
+            String source,
+            Map<String, ExecutableElement> keys,
+            Map<String, Set<String>> placeholders,
+            Map<String, String> constants) {
+
+        /** Companion class with one {@code String} constant per method, for calls that need a key. */
+        String keysSource(String pkg) {
+            String keysName = interfaceName + "_NookfallKeys";
+            StringBuilder out = new StringBuilder(pkg.isEmpty() ? "" : "package " + pkg + ";\n\n");
+            out.append("@com.nookfall.framework.spi.NookfallGenerated\n");
+            out.append("public final class ").append(keysName).append(" {\n\n");
+            out.append("    private ").append(keysName).append("() {}\n");
+            for (Map.Entry<String, String> constant : constants.entrySet()) {
+                out.append("\n    public static final String ")
+                        .append(constant.getKey())
+                        .append(" = ")
+                        .append(Env.literal(constant.getValue()))
+                        .append(';');
+            }
+            return out.append("\n}\n").toString();
+        }
+    }
+
+    private record MethodInfo(String source, Set<String> placeholders) {}
 
     private final Env env;
 
@@ -42,6 +72,8 @@ final class MessagesAnalyzer {
         String qualified = type.getQualifiedName().toString();
         String simpleName = type.getSimpleName() + "_NookfallMessages";
         Map<String, ExecutableElement> keys = new LinkedHashMap<>();
+        Map<String, Set<String>> placeholders = new LinkedHashMap<>();
+        Map<String, String> constants = new LinkedHashMap<>();
         StringBuilder methods = new StringBuilder();
         for (ExecutableElement method : env.methods(type)) {
             if (method.getModifiers().contains(Modifier.STATIC)
@@ -59,9 +91,20 @@ final class MessagesAnalyzer {
                 continue;
             }
             keys.putIfAbsent(key, method);
-            String body = method(method, key);
-            if (body != null) {
-                methods.append(body);
+            String constant = Env.upperSnake(method.getSimpleName().toString());
+            String existing = constants.putIfAbsent(constant, key);
+            if (existing != null && !existing.equals(key)) {
+                env.error(
+                        method,
+                        "Generated key constant " + constant + " would collide with key '" + existing
+                                + "'; rename the method or use @Key");
+            }
+            MethodInfo info = method(method, key);
+            if (info != null) {
+                methods.append(info.source());
+                placeholders
+                        .computeIfAbsent(key, ignored -> new LinkedHashSet<>())
+                        .addAll(info.placeholders());
             }
         }
         if (env.errors() != errorsBefore) {
@@ -76,10 +119,10 @@ final class MessagesAnalyzer {
                 + "    public " + simpleName + "(com.nookfall.framework.message.Localization localization) {\n"
                 + "        this.localization = localization;\n"
                 + "    }\n" + methods + "}\n";
-        return new Result(simpleName, source, keys);
+        return new Result(type.getSimpleName().toString(), simpleName, source, keys, placeholders, constants);
     }
 
-    private String method(ExecutableElement method, String key) {
+    private MethodInfo method(ExecutableElement method, String key) {
         List<? extends VariableElement> params = method.getParameters();
         TypeMirror returns = method.getReturnType();
         String kind;
@@ -173,7 +216,9 @@ final class MessagesAnalyzer {
             case "message" -> "return localization.message(" + localeExpr + ", " + Env.literal(key) + argList + ");";
             default -> "return localization.lines(" + localeExpr + ", " + Env.literal(key) + argList + ");";
         };
-        return "\n    @Override\n    public " + returns + " " + method.getSimpleName() + "(" + signature
-                + ") {\n        " + call + "\n    }\n";
+        return new MethodInfo(
+                "\n    @Override\n    public " + returns + " " + method.getSimpleName() + "(" + signature
+                        + ") {\n        " + call + "\n    }\n",
+                Set.copyOf(names));
     }
 }

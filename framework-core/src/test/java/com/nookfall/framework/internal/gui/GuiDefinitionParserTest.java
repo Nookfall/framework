@@ -104,6 +104,47 @@ class GuiDefinitionParserTest {
     }
 
     @Test
+    void itemsWithoutATextFallBackToTheirIdInTheItemsSection() {
+        GuiDefinition definition = parse("""
+                rows: 3
+                title: t
+                layout:
+                  - "I       C"
+                  - "         "
+                  - "         "
+                elements:
+                  info:
+                    symbol: "I"
+                    item: { material: BOOK }
+                  named:
+                    symbol: "N"
+                    item: { material: BOOK, name: "<red>Literal" }
+                  explicit:
+                    symbol: "E"
+                    item: { material: BOOK, translation: other.key }
+                  homes:
+                    symbol: "C"
+                    type: collection
+                    provider: homes
+                    item-template: home
+                    empty-item: { material: OAK_SIGN }
+                    loading-item: { material: CLOCK }
+                templates:
+                  home:
+                    material: RED_BED
+                """, new ArrayList<>());
+        assertThat(definition.elements().get("info").item().translation()).isEqualTo("items.info");
+        assertThat(definition.elements().get("named").item().translation())
+                .as("a literal name wins")
+                .isNull();
+        assertThat(definition.elements().get("explicit").item().translation()).isEqualTo("other.key");
+        GuiDefinition.Element homes = definition.elements().get("homes");
+        assertThat(homes.item().translation()).as("the template name").isEqualTo("items.home");
+        assertThat(homes.emptyItem().translation()).isEqualTo("items.empty-item");
+        assertThat(homes.loadingItem().translation()).isEqualTo("items.loading-item");
+    }
+
+    @Test
     void parsesTheDocumentedExample() {
         List<String> warnings = new ArrayList<>();
         GuiDefinition definition = parse(HOMES, warnings);

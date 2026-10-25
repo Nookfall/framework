@@ -2,6 +2,7 @@ package com.nookfall.framework.internal.config;
 
 import com.nookfall.framework.ReloadResult;
 import com.nookfall.framework.config.ConfigCodec;
+import com.nookfall.framework.config.ConfigDirectory;
 import com.nookfall.framework.config.ConfigException;
 import com.nookfall.framework.config.ConfigRef;
 import com.nookfall.framework.config.ConfigService;
@@ -13,7 +14,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
+import org.jspecify.annotations.Nullable;
 
 /** Configuration registry of one plugin. */
 public final class ConfigServiceImpl implements ConfigService {
@@ -21,8 +24,13 @@ public final class ConfigServiceImpl implements ConfigService {
     private final Codecs codecs = new Codecs();
     private final ConfigBinder binder = new ConfigBinder(codecs);
     private final Map<Class<?>, ConfigRefImpl<?>> refs = new LinkedHashMap<>();
+    private final List<ConfigDirectoryImpl<?>> directories = new ArrayList<>();
+    private final Path dataFolder;
+    private final Logger logger;
 
     public ConfigServiceImpl(Path dataFolder, List<ConfigSpec<?>> specs, Logger logger) {
+        this.dataFolder = dataFolder;
+        this.logger = logger;
         for (ConfigSpec<?> spec : specs) {
             refs.put(spec.type(), new ConfigRefImpl<>(spec, dataFolder, binder, logger));
         }
@@ -64,7 +72,23 @@ public final class ConfigServiceImpl implements ConfigService {
         for (ConfigRefImpl<?> ref : refs.values()) {
             result = result.merge(ref.reload());
         }
+        for (ConfigDirectoryImpl<?> directory : directories) {
+            result = result.merge(directory.reload());
+        }
         return result;
+    }
+
+    @Override
+    public synchronized <T> ConfigDirectory<T> directory(
+            Class<T> type, String folder, @Nullable Supplier<Map<String, String>> defaults) {
+        ConfigDirectoryImpl<T> directory =
+                new ConfigDirectoryImpl<>(type, folder, dataFolder, defaults, binder, logger);
+        ReloadResult result = directory.reload();
+        if (!result.success()) {
+            throw new ConfigException(folder + "/", result.errors());
+        }
+        directories.add(directory);
+        return directory;
     }
 
     @Override

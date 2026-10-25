@@ -23,6 +23,7 @@ final class Names {
     static final String NOT_BLANK = PKG + "constraint.NotBlank";
     static final String PATTERN = PKG + "constraint.Pattern";
     static final String LISTENER_COMPONENT = PKG + "listener.ListenerComponent";
+    static final String INTEGRATION = PKG + "integration.Integration";
     static final String CONFIG = PKG + "config.Config";
     static final String CODEC = PKG + "config.Codec";
     static final String MESSAGES = PKG + "message.Messages";

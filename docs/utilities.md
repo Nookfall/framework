@@ -35,6 +35,13 @@ data. `isEmpty(item)` treats `null`, air and zero amounts as empty.
 **`PersistentData`**: `key(plugin, name)`, `get`, `set`, `has` and `remove` on items and other
 persistent-data holders, returning `Optional` for reads.
 
+## Inventories (`util.inventory`)
+
+**`InventorySpace`**: `room(inventory, template)` is how many items fit, `fits(inventory, template, amount)` and `fits(inventory, Map<Material, Integer>)` tell whether items
+fit in the 36 storage slots before anything is moved or paid for (stacks are topped up first, empty slots are shared
+between all wanted items, never counted twice). `give(inventory, template, amount)` returns how many items did not fit, and
+`giveOrDrop(player, template, amount)` drops what does not fit at the player's feet.
+
 ## Locations (`util.location`)
 
 **`StoredLocation`**: an immutable location that refers to the world by name and does not keep the world
@@ -55,6 +62,11 @@ collision shapes, so slabs, carpets, farmland and paths count as ground. `isSafe
 `findNearby(location, range)` searches up and then down the same column. Call these on the thread that owns the
 region with its chunks loaded (otherwise they load synchronously).
 
+## Text (`util.text`)
+
+**`Numbers`**: `compact(value)` abbreviates large numbers for menus and tooltips: `9999` stays, then `10k`, `12.3k`, `200k`,
+`1M`, `1.5M`, `2B`, `3T` (one decimal at most). `compact(BigDecimal, threshold)` chooses where abbreviating starts.
+
 ## Time (`util.time`)
 
 **`Durations`**:
@@ -64,7 +76,7 @@ region with its chunks loaded (otherwise they load synchronously).
 | `parse("1h30m")` | `Duration` of 90 minutes; units `d`, `h`, `m`, `s`, `ms`; plain numbers are rejected |
 | `isValid(text)` | `true`/`false` |
 | `toCompact(duration)` | `1h30m` |
-| `toHuman(duration)` | `1h 30m` |
+| `toHuman(duration)` | `1h 30m`; for players, so never milliseconds: below a second is `<1s`, otherwise rounded to whole seconds |
 | `toCountdown(duration)` | `05:07`, or `1:30:00` from one hour |
 | `toTicks(duration, minimum)` | Server ticks, rounded up |
 

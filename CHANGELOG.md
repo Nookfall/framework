@@ -6,6 +6,38 @@ and shared-mode plugins require the same minor version of the `NookfallFramework
 
 ## Unreleased
 
+### Changed
+
+- GUI items without a `translation`, `name` or `lore` use the translation key `items.<id>` (the element id, the
+  template name, or `items.empty-item` / `items.loading-item`), so layouts no longer repeat `translation:` lines.
+- GUI titles follow their placeholders: when a menu is redrawn (a purchase, a page change) the title of the open window
+  is updated if it changed, so a balance or page number in the title stays current.
+- `Durations.toHuman`, used for `Arg.duration` placeholders, never shows milliseconds to players: below a second it is
+  `<1s`, otherwise it is rounded to whole seconds.
+
+### Added
+
+- `Numbers.compact` (`framework-utils`): `200k`, `1.5M`, `2B` for menus and tooltips.
+- `@Describe` on enum constants and automatic `Options:` lines: generated configuration files list the values of every enum
+  field and list, with the description of each option.
+- `@Comment` on a class is the default comment for fields of that type; `DatabaseSettings` uses it to document itself, and
+  `Databases.open(...)` opens and migrates the configured database in one call. `DatabaseSettings` compares by value.
+- `ConfigService.directory(...)` / `ConfigDirectory`: a folder of YAML files that are each read into the same class, with
+  defaults seeded once, atomic reloads and `ConfigTesting.directory(...)`.
+- `@Lenient` for lists and maps: entries from other Minecraft versions are skipped with a warning.
+- A built-in codec for `Enchantment`, and `Materials.find` also finds renamed materials (`CHAIN` / `IRON_CHAIN`).
+- `@Integration` and `Integrations`: optional support for other plugins declared in one class, constructed only on first
+  use and only when the plugins are enabled; a broken integration is reported once and treated as missing.
+- `InventorySpace` (`framework-utils`): checking room in inventories before moving or paying, and giving items without
+  losing any.
+- `WriteBehind` (`framework-storage`): background saving of in-memory data in batches, with retries and waiting on close.
+- Generated `<Interface>_NookfallKeys` constants for every `@Messages` interface, and `Nookfall_GuiIds` constants for
+  every bundled GUI (including YAML-only menus), so imperative lookups use generated names instead of string
+  literals.
+- Processor checks now verify that every `<placeholder>` in a bundled translation is a parameter of its `@Messages`
+  method, in every locale file, and that a GUI's `translation:` key has a `.name` or `.lore` entry in the default
+  locale.
+
 ## 0.1.1
 
 Fixes and additions found while building Nookfall Homes, the first plugin on the framework. Shared-mode plugins built

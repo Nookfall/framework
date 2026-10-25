@@ -298,8 +298,9 @@ public final class GuiManagerImpl implements GuiManager, Listener {
         GuiSession session = new GuiSession(this, player, loaded, arguments);
         try {
             loadCollections(session, true);
+            session.title = title(session);
             session.inventory =
-                    Bukkit.createInventory(session, loaded.definition().rows() * 9, title(session));
+                    Bukkit.createInventory(session, loaded.definition().rows() * 9, session.title);
             render(session);
         } catch (RuntimeException e) {
             logger.log(Level.SEVERE, "Could not open GUI '" + guiId + "' for " + player.getName(), e);
@@ -434,8 +435,9 @@ public final class GuiManagerImpl implements GuiManager, Listener {
         session.pages.putAll(old.pages);
         try {
             loadCollections(session, true);
+            session.title = title(session);
             session.inventory =
-                    Bukkit.createInventory(session, next.definition().rows() * 9, title(session));
+                    Bukkit.createInventory(session, next.definition().rows() * 9, session.title);
             render(session);
         } catch (RuntimeException e) {
             logger.log(Level.SEVERE, "Could not reopen GUI '" + old.guiId + "' after reload", e);
@@ -518,6 +520,13 @@ public final class GuiManagerImpl implements GuiManager, Listener {
 
     // ---- rendering ----
 
+    private static final net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer TITLES =
+            net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.builder()
+                    .character('\u00a7')
+                    .hexColors()
+                    .useUnusualXRepeatedCharacterHexFormat()
+                    .build();
+
     private Component title(GuiSession session) {
         String title = session.loaded.definition().title();
         Locale locale = localization.locale(session.player);
@@ -554,6 +563,22 @@ public final class GuiManagerImpl implements GuiManager, Listener {
         }
         session.inventory.setContents(contents);
         session.slots = slots;
+        refreshTitle(session);
+    }
+
+    /**
+     * Titles can contain placeholders (a balance, a page number), so a redraw updates the title of the open window when
+     * it changed. Bukkit can only set titles from legacy text, which keeps colours (including hex) but not events.
+     */
+    private void refreshTitle(GuiSession session) {
+        Component title = title(session);
+        if (title.equals(session.title)) {
+            return;
+        }
+        session.title = title;
+        if (isViewing(session.player, session)) {
+            session.player.getOpenInventory().setTitle(TITLES.serialize(title));
+        }
     }
 
     private void renderCollection(

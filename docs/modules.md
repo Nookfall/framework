@@ -50,4 +50,6 @@ A plugin built with the Gradle plugin contains, besides your classes:
 - `<MainClass>_NookfallIndex`: the generated entry that `Nookfall.start` looks up.
 - `Nookfall_Components` per package: generated command, listener, GUI and scheduling registrations.
 - `Nookfall_ConfigRefs` per package: an Avaje factory that provides `ConfigRef<T>` for each `@Config` class.
+- `<MessagesInterface>_NookfallKeys`: constants for the keys of an `@Messages` interface, for imperative lookups.
+- `Nookfall_GuiIds`: constants for the ids of bundled GUIs, in the main class's package.
 - Avaje's generated module and its `META-INF/services` entry.

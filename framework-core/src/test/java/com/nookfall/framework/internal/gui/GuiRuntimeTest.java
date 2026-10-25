@@ -248,6 +248,18 @@ class GuiRuntimeTest {
     }
 
     @Test
+    void titleFollowsPlaceholdersWhenTheMenuIsRedrawn() throws Exception {
+        InventoryView view = open();
+        assertThat(PlainTextComponentSerializer.plainText().serialize(view.title()))
+                .isEqualTo("Menu 1/2");
+        click(view, 26, ClickType.LEFT, InventoryAction.PICKUP_ALL);
+        assertThat(PlainTextComponentSerializer.plainText()
+                        .serialize(player.getOpenInventory().title()))
+                .as("the open window shows the new page number")
+                .isEqualTo("Menu 2/2");
+    }
+
+    @Test
     void protectsGuiFromItemMovement() {
         InventoryView view = open();
         int bottomSlot = view.getTopInventory().getSize() + 5;

@@ -97,8 +97,10 @@ public final class Durations {
             duration = Duration.ZERO;
         }
         if (duration.compareTo(Duration.ofSeconds(1)) < 0) {
-            return duration.toMillis() + "ms";
+            return "<1s";
         }
+        // Players never see milliseconds: whole seconds, rounded.
+        duration = Duration.ofSeconds(Math.round(duration.toMillis() / 1000.0));
         long[] values = {duration.toDays(), duration.toHoursPart(), duration.toMinutesPart(), duration.toSecondsPart()};
         String[] units = {"d", "h", "m", "s"};
         StringBuilder out = new StringBuilder();

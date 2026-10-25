@@ -38,7 +38,7 @@ final class ConfigBinder {
         boolean changed;
     }
 
-    record FieldInfo(Field field, String key, List<String> comment, ConfigCodec<Object> codec) {}
+    record FieldInfo(Field field, String key, List<String> comment, ConfigCodec<Object> codec, boolean lenient) {}
 
     private final Codecs codecs;
     private final Map<Class<?>, List<FieldInfo>> fieldCache = new ConcurrentHashMap<>();
@@ -76,7 +76,7 @@ final class ConfigBinder {
                     read(nested, child, fullPath, writeDefaults, pass);
                     value = nested;
                 } else {
-                    value = decode(info.field().getGenericType(), raw, fullPath, pass);
+                    value = decode(info.field().getGenericType(), raw, fullPath, pass, info.lenient());
                 }
                 if (value == null) {
                     continue;
@@ -134,7 +134,7 @@ final class ConfigBinder {
 
     // ---- decoding ----
 
-    private Object decode(Type type, Object raw, String path, Pass pass) {
+    private Object decode(Type type, Object raw, String path, Pass pass, boolean lenient) {
         if (raw == null) {
             return null;
         }
@@ -148,12 +148,12 @@ final class ConfigBinder {
             for (int i = 0; i < list.size(); i++) {
                 String elementPath = path + "[" + i + "]";
                 try {
-                    Object decoded = decode(element, list.get(i), elementPath, pass);
+                    Object decoded = decode(element, list.get(i), elementPath, pass, lenient);
                     if (decoded != null) {
                         out.add(decoded);
                     }
                 } catch (IllegalArgumentException e) {
-                    pass.errors.add(elementPath + ": " + e.getMessage());
+                    problem(pass, lenient, elementPath, e);
                 }
             }
             return Set.class.isAssignableFrom(rawClass) ? Set.copyOf(out) : List.copyOf(out);
@@ -167,12 +167,12 @@ final class ConfigBinder {
                 String childPath = path + "." + entry.getKey();
                 try {
                     Object key = decodeScalar(rawClass(keyType), String.valueOf(entry.getKey()));
-                    Object value = decode(valueType, entry.getValue(), childPath, pass);
+                    Object value = decode(valueType, entry.getValue(), childPath, pass, lenient);
                     if (value != null) {
                         out.put(key, value);
                     }
                 } catch (IllegalArgumentException e) {
-                    pass.errors.add(childPath + ": " + e.getMessage());
+                    problem(pass, lenient, childPath, e);
                 }
             }
             return java.util.Collections.unmodifiableMap(out);
@@ -187,6 +187,15 @@ final class ConfigBinder {
             return plain(raw);
         }
         return decodeScalar(rawClass, raw);
+    }
+
+    /** A list element or map entry that cannot be read: an error, or with {@code @Lenient} a warning and it is skipped. */
+    private static void problem(Pass pass, boolean lenient, String path, IllegalArgumentException e) {
+        if (lenient) {
+            pass.warnings.add(path + ": " + e.getMessage() + " (skipped)");
+        } else {
+            pass.errors.add(path + ": " + e.getMessage());
+        }
     }
 
     private Object decodeScalar(Class<?> type, Object raw) {
@@ -307,12 +316,22 @@ final class ConfigBinder {
                 ConfigKey keyAnnotation = field.getAnnotation(ConfigKey.class);
                 String key = keyAnnotation != null ? keyAnnotation.value() : kebab(field.getName());
                 Comment comment = field.getAnnotation(Comment.class);
+                if (comment == null) {
+                    comment = field.getType().getAnnotation(Comment.class);
+                }
                 Codec codecAnnotation = field.getAnnotation(Codec.class);
                 ConfigCodec<Object> codec = null;
                 if (codecAnnotation != null) {
                     codec = (ConfigCodec<Object>) instantiate(codecAnnotation.value());
                 }
-                out.add(new FieldInfo(field, key, comment == null ? List.of() : List.of(comment.value()), codec));
+                List<String> lines = new ArrayList<>(comment == null ? List.of() : List.of(comment.value()));
+                lines.addAll(EnumDocs.lines(field.getGenericType()));
+                out.add(new FieldInfo(
+                        field,
+                        key,
+                        List.copyOf(lines),
+                        codec,
+                        field.isAnnotationPresent(com.nookfall.framework.config.Lenient.class)));
             }
         }
         return List.copyOf(out);

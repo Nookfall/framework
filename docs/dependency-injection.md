@@ -56,6 +56,7 @@ These can be injected into any bean:
 | `ConfigService` | This plugin's configuration files |
 | `ConfigRef<T>` | One per `@Config` class |
 | `GuiManager` | This plugin's menus |
+| `Integrations` | Optional support for other plugins, see [Integrations](integrations.md) |
 | Your `@Messages` interfaces | Generated implementations |
 
 Inject the concrete main class only through `Plugin`/`JavaPlugin`; the main class itself is not a bean.

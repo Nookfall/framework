@@ -16,6 +16,7 @@ final class PackageModel {
     final List<String> configs = new ArrayList<>();
     final List<String> guis = new ArrayList<>();
     final List<String> scheduled = new ArrayList<>();
+    final List<String> integrations = new ArrayList<>();
     final Set<String> singletonImports = new LinkedHashSet<>();
     final Set<String> prototypeImports = new LinkedHashSet<>();
     final List<String> configTypes = new ArrayList<>();
@@ -36,6 +37,7 @@ final class PackageModel {
                 && configs.isEmpty()
                 && guis.isEmpty()
                 && scheduled.isEmpty()
+                && integrations.isEmpty()
                 && singletonImports.isEmpty()
                 && prototypeImports.isEmpty();
     }

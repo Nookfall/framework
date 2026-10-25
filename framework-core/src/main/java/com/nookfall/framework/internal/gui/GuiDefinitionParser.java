@@ -411,7 +411,7 @@ final class GuiDefinitionParser {
                 amount,
                 section.getString("name"),
                 lore,
-                section.getString("translation"),
+                translation(section, path, lore),
                 List.copyOf(flags),
                 Map.copyOf(enchantments),
                 glow,
@@ -419,6 +419,31 @@ final class GuiDefinitionParser {
                 renderer,
                 action,
                 Map.copyOf(clicks));
+    }
+
+    /**
+     * The translation key of an item: the explicit {@code translation}, otherwise (when the item has no literal name or
+     * lore either) {@code items.<id>}: the element id for an element's item, the template name for a template, and
+     * {@code items.empty-item} / {@code items.loading-item} for those items of a collection.
+     */
+    private static @Nullable String translation(
+            ConfigurationSection section, String path, @Nullable List<String> lore) {
+        String explicit = section.getString("translation");
+        if (explicit != null || section.getString("name") != null || lore != null) {
+            return explicit;
+        }
+        String[] parts = path.split("\\.");
+        if (parts.length == 2 && parts[0].equals("templates")) {
+            return "items." + parts[1];
+        }
+        if (parts.length == 3 && parts[0].equals("elements")) {
+            return switch (parts[2]) {
+                case "item" -> "items." + parts[1];
+                case "empty-item", "loading-item" -> "items." + parts[2];
+                default -> null;
+            };
+        }
+        return null;
     }
 
     private void checkAction(String action, String path, boolean entryAvailable) {

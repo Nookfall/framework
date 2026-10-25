@@ -53,7 +53,7 @@ public final class HomeService {
     }
 
     public void openMenu(Player player) {
-        guis.open(player, "homes");
+        guis.open(player, Nookfall_GuiIds.HOMES);
     }
 
     /** Loads a player's homes into the cache. */

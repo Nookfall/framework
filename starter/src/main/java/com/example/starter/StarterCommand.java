@@ -39,7 +39,7 @@ public final class StarterCommand {
 
     @Execute
     void menu(Player player) {
-        guis.open(player, "menu");
+        guis.open(player, Nookfall_GuiIds.MENU);
     }
 
     @Subcommand(value = "visitors", description = "Show recent visitors")

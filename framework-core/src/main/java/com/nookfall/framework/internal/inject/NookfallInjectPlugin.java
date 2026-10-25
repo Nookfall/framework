@@ -22,6 +22,7 @@ public final class NookfallInjectPlugin implements InjectPlugin {
         "com.nookfall.framework.message.Localization",
         "com.nookfall.framework.config.ConfigService",
         "com.nookfall.framework.gui.GuiManager",
+        "com.nookfall.framework.integration.Integrations",
     };
 
     @Override

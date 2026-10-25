@@ -16,6 +16,9 @@ dependencies {
     // InjectPlugin SPI, so Avaje's generator knows which beans the framework provides at runtime.
     implementation(libs.avaje.inject)
     implementation(libs.snakeyaml)
+    // Placeholders are extracted with the same MiniMessage parser the runtime uses.
+    implementation(libs.adventure.minimessage)
+    implementation(libs.adventure.serializer.plain)
 
     testImplementation(project(":framework-core"))
     testImplementation(libs.paper.api)

@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -35,6 +36,9 @@ final class GuiSession implements InventoryHolder {
     volatile boolean active = true;
     volatile long generation;
     Inventory inventory;
+    /** The title currently shown, to notice when a redraw changes it. */
+    Component title;
+
     SlotBinding[] slots = new SlotBinding[0];
     long lastClick;
     boolean dispatching;

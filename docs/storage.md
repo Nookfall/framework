@@ -46,6 +46,21 @@ database:
 
 ## Creating the database
 
+The easiest way is `Databases.open`, which opens the configured database, applies the migrations and closes it again if a
+migration fails:
+
+```java
+@Bean(destroyMethod = "close")
+Database database(Plugin plugin, ConfigRef<MyConfig> config) {
+    return Databases.open(plugin, config.get().database(), Migration.discover(MyPlugin.class, "db/migration"));
+}
+```
+
+`DatabaseSettings` documents itself in the generated file (including the `SQLITE` / `MYSQL` / `MARIADB` options) and compares
+by value: after a reload, `!before.equals(config.get().database())` means a restart is needed.
+
+By hand:
+
 Create it once and close it with the plugin. With Avaje, a factory does both:
 
 ```java
@@ -130,6 +145,21 @@ that migrates afterwards.)
 Re-running `migrate` skips applied versions. Editing the SQL of an already applied migration is reported as an
 error instead of being silently ignored. `migrate` is blocking and, unlike `query`, may run on the server thread,
 because it is meant for startup.
+
+## Keeping in-memory data saved: `WriteBehind`
+
+For data that lives in memory (balances, a registry) and must still survive crashes, `WriteBehind<B>` runs the saving loop:
+the owner marks changes dirty, calls `request()`, and the batch of changes is written in the background, one write at a time
+(changes made meanwhile join the next batch). Failed batches are restored and retried by `retry()`, and `close()` waits for
+everything to be written, so call it before the `Database` closes (an Avaje `@PreDestroy` on the owner does that).
+
+```java
+WriteBehind<List<Row>> writer = new WriteBehind<>("accounts", logger,
+        this::drainDirty,                  // take the dirty rows out of memory, or null if none
+        rows -> repository.save(rows),     // CompletableFuture
+        this::markDirtyAgain,              // put a failed batch back
+        () -> !dirty.isEmpty());
+```
 
 ## Executor and shutdown
 

@@ -24,4 +24,9 @@ public interface PluginIndex {
     List<GuiBinding<?>> guis();
 
     List<ScheduledSpec<?>> scheduled();
+
+    /** Optional integrations; empty for indexes generated before they existed. */
+    default List<IntegrationSpec> integrations() {
+        return List.of();
+    }
 }

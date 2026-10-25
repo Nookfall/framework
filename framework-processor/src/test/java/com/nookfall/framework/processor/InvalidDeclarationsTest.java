@@ -131,6 +131,25 @@ class InvalidDeclarationsTest {
     }
 
     @Test
+    void integrationsNeedPluginsAndMustImplementTheirType() {
+        List<String> errors = errors(
+                source("demo.Hook", "package demo; public interface Hook {}"),
+                source("demo.NoPlugins", """
+                        package demo;
+                        @com.nookfall.framework.integration.Integration(value = Hook.class, plugins = {})
+                        public class NoPlugins implements Hook {}
+                        """),
+                source("demo.WrongType", """
+                        package demo;
+                        @com.nookfall.framework.integration.Integration(value = Hook.class, plugins = "X")
+                        public class WrongType {}
+                        """));
+        assertThat(errors)
+                .anySatisfy(e -> assertThat(e).startsWith("NoPlugins.java").contains("at least one plugin name"))
+                .anySatisfy(e -> assertThat(e).startsWith("WrongType.java").contains("must implement or extend"));
+    }
+
+    @Test
     void invalidGuiSignaturesAndDuplicates() {
         List<String> errors = errors(source("demo.G", """
                 package demo;
@@ -162,6 +181,14 @@ class InvalidDeclarationsTest {
                 source("demo.G1", "package demo; @com.nookfall.framework.gui.Gui(\"menu\") public class G1 {}"),
                 source("demo.G2", "package demo; @com.nookfall.framework.gui.Gui(\"menu\") public class G2 {}"));
         assertThat(errors).anySatisfy(e -> assertThat(e).contains("Duplicate GUI id 'menu'"));
+    }
+
+    @Test
+    void guiIdConstantsMustBeUnique() {
+        List<String> errors = errors(
+                source("demo.G1", "package demo; @com.nookfall.framework.gui.Gui(\"home-edit\") public class G1 {}"),
+                source("demo.G2", "package demo; @com.nookfall.framework.gui.Gui(\"home_edit\") public class G2 {}"));
+        assertThat(errors).anySatisfy(e -> assertThat(e).contains("would both generate constant HOME_EDIT"));
     }
 
     @Test
@@ -226,6 +253,86 @@ class InvalidDeclarationsTest {
         assertThat(errors).anySatisfy(e -> assertThat(e).startsWith("M.java:5").contains("needs the recipient"));
         assertThat(errors).anySatisfy(e -> assertThat(e).startsWith("M.java:6").contains("must return void"));
         assertThat(errors).anySatisfy(e -> assertThat(e).contains("Duplicate placeholder name 'a'"));
+    }
+
+    @Test
+    void messagePlaceholdersMustBeParameters(@TempDir Path resources) throws IOException {
+        Files.createDirectories(resources.resolve("lang"));
+        Files.writeString(resources.resolve("lang/en_US.yml"), """
+                x:
+                  greet: "Hi <name>"
+                """);
+        Fixtures.Result result = compile(resources, source("demo.M", """
+                        package demo;
+                        @com.nookfall.framework.message.Messages("x")
+                        public interface M {
+                            void greet(org.bukkit.entity.Player player, String other);
+                        }
+                        """));
+        assertThat(result.success()).as(result.output()).isFalse();
+        assertThat(result.errors())
+                .anySatisfy(e -> assertThat(e)
+                        .startsWith("M.java:4")
+                        .contains("Placeholder <name>")
+                        .contains("not a parameter"));
+    }
+
+    @Test
+    void placeholdersAreCheckedInEveryLocale(@TempDir Path resources) throws IOException {
+        Files.createDirectories(resources.resolve("lang"));
+        Files.writeString(resources.resolve("lang/en_US.yml"), "x:\n  greet: 'Hi <name>'\n");
+        Files.writeString(resources.resolve("lang/pl_PL.yml"), "x:\n  greet: 'Czesc <imie>'\n");
+        Fixtures.Result result = compile(resources, source("demo.M", """
+                        package demo;
+                        @com.nookfall.framework.message.Messages("x")
+                        public interface M {
+                            void greet(org.bukkit.entity.Player player, String name);
+                        }
+                        """));
+        assertThat(result.success()).as(result.output()).isFalse();
+        assertThat(result.errors())
+                .anySatisfy(e -> assertThat(e)
+                        .contains("lang/pl_PL.yml")
+                        .contains("Placeholder <imie>")
+                        .contains("not a parameter"));
+    }
+
+    @Test
+    void guiTranslationsMustExist(@TempDir Path resources) throws IOException {
+        Files.createDirectories(resources.resolve("lang"));
+        Files.writeString(resources.resolve("lang/en_US.yml"), "x:\n  present: hi\n");
+        Files.createDirectories(resources.resolve("guis/menu"));
+        Files.writeString(resources.resolve("guis/menu/layout.yml"), """
+                rows: 1
+                layout:
+                  - "AAAAAAAAA"
+                elements:
+                  a: { symbol: "A", type: button, action: close, item: { material: STONE, translation: items.missing } }
+                """);
+        Fixtures.Result result = compile(
+                resources,
+                source("demo.G", "package demo; @com.nookfall.framework.gui.Gui(\"menu\") public class G {}"));
+        assertThat(result.success()).as(result.output()).isFalse();
+        assertThat(result.errors())
+                .anySatisfy(e -> assertThat(e)
+                        .contains("elements.a.item.translation 'items.missing'")
+                        .contains("items.missing.name"));
+    }
+
+    @Test
+    void messageKeyConstantsMustBeUnique() {
+        List<String> errors = errors(source("demo.M", """
+                package demo;
+                import com.nookfall.framework.message.*;
+                @Messages("x")
+                public interface M {
+                    @Key("a") void one(org.bukkit.entity.Player player);
+                    @Key("b") void one(org.bukkit.entity.Player player, int count);
+                }
+                """));
+        assertThat(errors)
+                .anySatisfy(e ->
+                        assertThat(e).contains("Generated key constant ONE").contains("would collide"));
     }
 
     @Test
